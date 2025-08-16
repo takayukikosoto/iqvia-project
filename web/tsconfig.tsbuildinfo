@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/supabaseclient.ts","./src/vite-env.d.ts","./src/components/auth.tsx","./src/components/createtaskmodal.tsx","./src/components/taskboard.tsx","./src/components/taskcard.tsx","./src/hooks/useauth.ts","./src/pages/tasks.tsx","./src/types/index.ts","./src/utils/testsetup.ts"],"version":"5.9.2"}

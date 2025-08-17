@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
+import { useMentions, ProjectMember } from '../hooks/useMentions'
 import { useAuth } from '../hooks/useAuth'
 
 interface ChatMessage {
@@ -23,7 +24,14 @@ export default function Chat({ projectId }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [cursorPosition, setCursorPosition] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  
+  // Mentions hook
+  const { projectMembers, searchMentionCandidates, highlightMentions } = useMentions(projectId)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -78,8 +86,50 @@ export default function Chat({ projectId }: ChatProps) {
     setLoading(false)
   }
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // メンション検出とサジェスト表示
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    const position = e.target.selectionStart
+    
+    setNewMessage(value)
+    setCursorPosition(position)
+    
+    // @の後の文字列を検出
+    const beforeCursor = value.substring(0, position)
+    const mentionMatch = beforeCursor.match(/@([a-zA-Z0-9._-]*)$/)
+    
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1])
+      setShowMentionSuggestions(true)
+    } else {
+      setShowMentionSuggestions(false)
+      setMentionQuery('')
+    }
+  }
+
+  // メンション候補選択
+  const selectMention = (member: ProjectMember) => {
+    const beforeCursor = newMessage.substring(0, cursorPosition)
+    const afterCursor = newMessage.substring(cursorPosition)
+    
+    // @query を @email に置換
+    const mentionText = `@${member.email.split('@')[0]}`
+    const beforeMention = beforeCursor.replace(/@[a-zA-Z0-9._-]*$/, '')
+    const newText = beforeMention + mentionText + ' ' + afterCursor
+    
+    setNewMessage(newText)
+    setShowMentionSuggestions(false)
+    setMentionQuery('')
+    
+    // フォーカスを戻す
+    setTimeout(() => {
+      textareaRef.current?.focus()
+      const newPosition = beforeMention.length + mentionText.length + 1
+      textareaRef.current?.setSelectionRange(newPosition, newPosition)
+    }, 0)
+  }
+
+  const sendMessage = async () => {
     if (!newMessage.trim() || !user || !projectId) {
       console.log('Send message blocked:', { 
         hasMessage: !!newMessage.trim(), 
@@ -89,19 +139,19 @@ export default function Chat({ projectId }: ChatProps) {
       return
     }
 
-    console.log('Sending message:', { 
-      project_id: projectId, 
-      user_id: user.id, 
-      content: newMessage.trim() 
-    })
+    console.log('Sending message:', newMessage)
+    console.log('Project ID:', projectId)
+    console.log('User ID:', user.id)
+
+    const messageData = {
+      content: newMessage,
+      project_id: projectId,
+      user_id: user.id
+    }
 
     const { data, error } = await supabase
       .from('chat_messages')
-      .insert([{
-        project_id: projectId,
-        user_id: user.id,
-        content: newMessage.trim()
-      }])
+      .insert([messageData])
       .select()
 
     if (error) {
@@ -109,6 +159,21 @@ export default function Chat({ projectId }: ChatProps) {
     } else {
       console.log('Message sent successfully:', data)
       setNewMessage('')
+      setShowMentionSuggestions(false)
+    }
+  }
+
+  // キーボードイベント処理
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (showMentionSuggestions) {
+        // メンション候補が表示中の場合は何もしない
+        return
+      }
+      sendMessage()
+    } else if (e.key === 'Escape' && showMentionSuggestions) {
+      setShowMentionSuggestions(false)
     }
   }
 
@@ -277,45 +342,94 @@ export default function Chat({ projectId }: ChatProps) {
       </div>
 
       {/* Input */}
-      <form onSubmit={sendMessage} style={{
+      <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} style={{
         padding: 16,
         borderTop: '1px solid #e5e7eb',
-        backgroundColor: '#f8f9fa'
+        display: 'flex',
+        gap: 8
       }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            type="text"
+        <div style={{ position: 'relative', flex: 1 }}>
+          <textarea
+            ref={textareaRef}
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="メッセージを入力..."
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="メッセージを入力... (@でメンション)"
             style={{
-              flex: 1,
+              width: '100%',
               padding: '8px 12px',
               border: '1px solid #d1d5db',
               borderRadius: 20,
               fontSize: 14,
-              outline: 'none'
+              outline: 'none',
+              resize: 'none',
+              minHeight: 40
             }}
             onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
             onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
           />
-          <button
-            type="submit"
-            disabled={!newMessage.trim()}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: newMessage.trim() ? '#3b82f6' : '#9ca3af',
-              color: 'white',
-              border: 'none',
-              borderRadius: 20,
-              fontSize: 14,
-              cursor: newMessage.trim() ? 'pointer' : 'not-allowed',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            送信
-          </button>
+          
+          {/* Mention Suggestions */}
+          {showMentionSuggestions && (
+            <div style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              border: '1px solid #d1d5db',
+              borderRadius: 8,
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              maxHeight: 200,
+              overflowY: 'auto',
+              zIndex: 1000
+            }}>
+              {searchMentionCandidates(mentionQuery).map((member, index) => (
+                <div
+                  key={member.user_id}
+                  onClick={() => selectMention(member)}
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    borderBottom: index < searchMentionCandidates(mentionQuery).length - 1 ? '1px solid #f3f4f6' : 'none'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                    @{member.email.split('@')[0]}
+                  </div>
+                  {member.display_name && (
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      {member.display_name}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {searchMentionCandidates(mentionQuery).length === 0 && (
+                <div style={{ padding: '8px 12px', color: '#6b7280', fontSize: 12 }}>
+                  メンション候補が見つかりません
+                </div>
+              )}
+            </div>
+          )}
         </div>
+        <button
+          type="submit"
+          disabled={!newMessage.trim()}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: newMessage.trim() ? '#3b82f6' : '#9ca3af',
+            color: 'white',
+            border: 'none',
+            borderRadius: 20,
+            fontSize: 14,
+            cursor: newMessage.trim() ? 'pointer' : 'not-allowed',
+            transition: 'background-color 0.2s'
+          }}
+        >
+          送信
+        </button>
       </form>
     </div>
   )

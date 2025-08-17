@@ -1,0 +1,284 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../supabaseClient'
+
+export interface FileItem {
+  id: string
+  project_id: string
+  name: string
+  description?: string
+  file_type?: string
+  mime_type?: string
+  storage_path?: string
+  external_id?: string
+  external_url?: string
+  current_version?: number
+  current_version_id?: string
+  total_versions: number
+  total_size_bytes: number
+  created_by?: string
+  updated_by?: string
+  created_at: string
+  updated_at?: string
+}
+
+export interface FileVersion {
+  id: string
+  file_id: string
+  version?: number
+  version_number?: number
+  name?: string
+  size_bytes?: number
+  checksum?: string
+  storage_key?: string
+  storage_path?: string
+  external_id?: string
+  upload_status?: string
+  change_notes?: string
+  uploaded_at?: string
+  uploaded_by?: string
+  created_by?: string
+  created_at?: string
+}
+
+export function useFiles(projectId: string) {
+  const [files, setFiles] = useState<FileItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // ファイル一覧取得
+  const fetchFiles = async () => {
+    if (!projectId) return
+    
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('files')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setFiles(data || [])
+    } catch (err) {
+      console.error('Error fetching files:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch files')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ファイルアップロード
+  const uploadFile = async (file: File, description?: string): Promise<string | null> => {
+    try {
+      // 1. Supabase Storageにファイルアップロード
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}.${fileExt}`
+      const filePath = `${projectId}/${fileName}`
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('files')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      // 2. ファイルメタデータをDBに保存
+      const { data: fileData, error: fileError } = await supabase
+        .from('files')
+        .insert({
+          project_id: projectId,
+          name: file.name,
+          provider: 'supabase',
+          current_version: 1,
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .select()
+        .single()
+
+      if (fileError) throw fileError
+
+      // 3. 初回バージョンをfile_versionsに追加
+      const { error: versionError } = await supabase
+        .from('file_versions')
+        .insert({
+          file_id: fileData.id,
+          version: 1,
+          size_bytes: file.size,
+          storage_key: uploadData.path,
+          uploaded_by: (await supabase.auth.getUser()).data.user?.id
+        })
+
+      if (versionError) throw versionError
+
+      // 4. ファイル一覧を再取得
+      await fetchFiles()
+      
+      return fileData.id
+    } catch (err) {
+      console.error('Error uploading file:', err)
+      setError(err instanceof Error ? err.message : 'Failed to upload file')
+      return null
+    }
+  }
+
+  // ファイルダウンロード
+  const downloadFile = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('files')
+        .download(filePath)
+
+      if (error) throw error
+
+      // ブラウザでダウンロード
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error downloading file:', err)
+      setError(err instanceof Error ? err.message : 'Failed to download file')
+    }
+  }
+
+  // ファイル削除
+  const deleteFile = async (fileId: string, storagePath?: string) => {
+    try {
+      // 1. Storageからファイル削除
+      if (storagePath) {
+        const { error: storageError } = await supabase.storage
+          .from('files')
+          .remove([storagePath])
+        
+        if (storageError) console.warn('Storage deletion error:', storageError)
+      }
+
+      // 2. DBからファイル削除（CASCADE でfile_versionsも削除される）
+      const { error } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', fileId)
+
+      if (error) throw error
+
+      // 3. ファイル一覧を再取得
+      await fetchFiles()
+    } catch (err) {
+      console.error('Error deleting file:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete file')
+    }
+  }
+
+  // ファイルバージョン履歴取得
+  const getFileVersions = async (fileId: string): Promise<FileVersion[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('file_versions')
+        .select('*')
+        .eq('file_id', fileId)
+        .order('version_number', { ascending: false })
+
+      if (error) throw error
+      return data || []
+    } catch (err) {
+      console.error('Error fetching file versions:', err)
+      return []
+    }
+  }
+
+  // 新バージョンアップロード
+  const uploadNewVersion = async (fileId: string, file: File, changeNotes?: string): Promise<boolean> => {
+    try {
+      // 1. 現在のファイル情報を取得
+      const { data: fileData, error: fileError } = await supabase
+        .from('files')
+        .select('*')
+        .eq('id', fileId)
+        .single()
+
+      if (fileError) throw fileError
+
+      // 2. 新しいバージョン番号を計算
+      const newVersionNumber = (fileData.total_versions || 1) + 1
+
+      // 3. Supabase Storageにファイルアップロード
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}_v${newVersionNumber}.${fileExt}`
+      const filePath = `${fileData.project_id}/${fileName}`
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('files')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      // 4. 新バージョンをfile_versionsに追加
+      const { data: versionData, error: versionError } = await supabase
+        .from('file_versions')
+        .insert({
+          file_id: fileId,
+          version_number: newVersionNumber,
+          name: file.name,
+          storage_path: uploadData.path,
+          size_bytes: file.size,
+          upload_status: 'completed',
+          change_notes: changeNotes,
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .select()
+        .single()
+
+      if (versionError) throw versionError
+
+      // 5. ファイルのメタデータを更新
+      const { error: updateError } = await supabase
+        .from('files')
+        .update({
+          current_version_id: versionData.id,
+          total_versions: newVersionNumber,
+          total_size_bytes: fileData.total_size_bytes + file.size,
+          updated_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', fileId)
+
+      if (updateError) throw updateError
+
+      // 6. ファイル一覧を再取得
+      await fetchFiles()
+      
+      return true
+    } catch (err) {
+      console.error('Error uploading new version:', err)
+      setError(err instanceof Error ? err.message : 'Failed to upload new version')
+      return false
+    }
+  }
+
+  // ファイルタイプ判定
+  const getFileType = (mimeType: string): string => {
+    if (mimeType.startsWith('image/')) return 'image'
+    if (mimeType.startsWith('video/')) return 'video'
+    if (mimeType.startsWith('audio/')) return 'audio'
+    if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text')) return 'document'
+    return 'other'
+  }
+
+  useEffect(() => {
+    fetchFiles()
+  }, [projectId])
+
+  return {
+    files,
+    loading,
+    error,
+    uploadFile,
+    uploadNewVersion,
+    downloadFile,
+    deleteFile,
+    getFileVersions,
+    refetch: fetchFiles
+  }
+}

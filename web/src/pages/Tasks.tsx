@@ -1,10 +1,32 @@
-import React, { useEffect, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import React, { useState, useEffect } from 'react'
 import TaskBoard from '../components/TaskBoard'
-import CreateTaskModal from '../components/CreateTaskModal'
 import Chat from '../components/Chat'
-import { Task, Project } from '../types'
+import FileUpload from '../components/FileUpload'
+import FileList from '../components/FileList'
+import MentionNotifications from '../components/MentionNotifications'
+import CreateTaskModal from '../components/CreateTaskModal'
+import { useFiles } from '../hooks/useFiles'
 import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../supabaseClient'
+
+interface Task {
+  id: string
+  title: string
+  description?: string
+  status: 'todo' | 'doing' | 'review' | 'done' | 'blocked'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  project_id: string
+  assigned_to?: string
+  created_at: string
+  updated_at: string
+}
+
+interface Project {
+  id: string
+  name: string
+  org_id: string
+  created_at: string
+}
 
 export default function Tasks() {
   const { user } = useAuth()
@@ -14,11 +36,15 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
+  
+  // File management hook
+  const { files, loading: filesLoading, uploadFile, uploadNewVersion, downloadFile, deleteFile, getFileVersions } = useFiles(selectedProject)
 
   const loadProjects = async () => {
     const { data, error } = await supabase
       .from('projects')
-      .select('id, name, org_id')
+      .select('id, name, org_id, created_at')
     if (error) {
       console.error('Projects load error:', error)
     } else {
@@ -142,24 +168,21 @@ export default function Tasks() {
     <div style={{ display: 'flex', gap: 24, height: 'calc(100vh - 140px)' }}>
       {/* Left Panel - Tasks */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: 24 
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <h2>タスク管理</h2>
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-indigo-50 rounded-lg flex-shrink-0">
+                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{width: '24px', height: '24px'}}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">タスク管理</h2>
+            </div>
             {projects.length > 0 && (
               <select
                 value={selectedProject}
                 onChange={(e) => setSelectedProject(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #ccc',
-                  borderRadius: 4,
-                  fontSize: 14
-                }}
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium bg-white hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
               >
                 {projects.map(project => (
                   <option key={project.id} value={project.id}>
@@ -171,17 +194,12 @@ export default function Tasks() {
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontSize: 14
-            }}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center space-x-2"
           >
-            新しいタスク
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span>新しいタスク</span>
           </button>
         </div>
 
@@ -198,22 +216,70 @@ export default function Tasks() {
           </div>
         )}
 
+        {/* Tab Navigation */}
+        <div className="flex bg-gray-100/70 rounded-xl p-1 mb-6 backdrop-blur-sm">
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className={`flex-1 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
+              activeTab === 'tasks'
+                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-100'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
+            }`}
+          >
+            <div className="flex items-center justify-center space-x-2">
+              <span className="text-lg">📋</span>
+              <span>タスク ({tasks.length})</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('files')}
+            className={`flex-1 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
+              activeTab === 'files'
+                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-100'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
+            }`}
+          >
+            <div className="flex items-center justify-center space-x-2">
+              <span className="text-lg">📁</span>
+              <span>ファイル ({files.length})</span>
+            </div>
+          </button>
+        </div>
+
         {loading ? (
           <div>読み込み中...</div>
-        ) : (
+        ) : activeTab === 'tasks' ? (
           <TaskBoard 
             tasks={tasks} 
             onTaskUpdate={handleTaskUpdate}
             onTaskDelete={handleTaskDelete}
           />
+        ) : (
+          <div className="space-y-4">
+            <FileUpload 
+              onFileUpload={uploadFile}
+              loading={filesLoading}
+            />
+            <FileList
+              files={files}
+              loading={filesLoading}
+              onDownload={downloadFile}
+              onDelete={deleteFile}
+              onGetVersions={getFileVersions}
+              onUploadNewVersion={uploadNewVersion}
+            />
+          </div>
         )}
+        {/* Mention Notifications */}
+        {selectedProject && <MentionNotifications projectId={selectedProject} />}
       </div>
-
+      
       {/* Right Panel - Chat */}
       <div style={{ width: 350, minWidth: 350, height: '100%' }}>
         <Chat projectId={selectedProject} />
       </div>
 
+      {/* Create Task Modal */}
       {showCreateModal && (
         <CreateTaskModal
           onSubmit={handleTaskCreate}

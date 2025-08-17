@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Task, TaskPriority } from '../types'
+import { usePriority } from '../hooks/usePriority'
 
 interface TaskCardProps {
   task: Task
-  onStatusChange: (taskId: string, newStatus: Task['status']) => void
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void
   onTaskDelete: (taskId: string) => void
 }
@@ -30,12 +30,26 @@ const statusOptions: { value: Task['status']; label: string }[] = [
   { value: 'blocked', label: '停止中' }
 ]
 
-export default function TaskCard({ task, onStatusChange, onTaskUpdate, onTaskDelete }: TaskCardProps) {
+export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardProps) {
+  const { priorityOptions, changePriority, getPriorityColor, getPriorityLabel, loading, getPriorityHistory } = usePriority()
+  
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description || '')
   const [priority, setPriority] = useState(task.priority)
   const [dueAt, setDueAt] = useState(task.due_at ? task.due_at.split('T')[0] : '')
+  const [priorityHistory, setPriorityHistory] = useState<any[]>([])
+  
+  // Load priority history
+  useEffect(() => {
+    if (task.id) {
+      getPriorityHistory(task.id).then(history => {
+        setPriorityHistory(history)
+      })
+    }
+  }, [task.id])
+  
+  const latestPriorityChange = priorityHistory[0]
 
   const handleSave = () => {
     onTaskUpdate(task.id, {
@@ -71,6 +85,22 @@ export default function TaskCard({ task, onStatusChange, onTaskUpdate, onTaskDel
         {isOverdue && ' (期限切れ)'}
       </div>
     )
+  }
+
+  const handlePriorityChange = async (e: React.MouseEvent, newPriority: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    try {
+      console.log('Priority button clicked:', newPriority)
+      await changePriority(task.id, newPriority)
+      console.log('Priority change result: success')
+      
+      // Refresh page to reflect changes
+      window.location.reload()
+    } catch (error) {
+      console.error('Priority change result: error', error)
+    }
   }
 
   if (isEditing) {
@@ -174,21 +204,65 @@ export default function TaskCard({ task, onStatusChange, onTaskUpdate, onTaskDel
     )
   }
 
+  // Get background color based on priority
+  const getBackgroundColor = () => {
+    if (loading || !priorityOptions || priorityOptions.length === 0) {
+      // フォールバック色
+      switch (task.priority) {
+        case 'low': return '#e8f5e8'
+        case 'medium': return '#fff8e1'
+        case 'high': return '#fff3e0'
+        case 'urgent': return '#ffebee'
+        default: return 'white'
+      }
+    }
+    
+    // データベースの色を使用（薄くする）
+    const priorityOption = priorityOptions.find(option => option.name === task.priority)
+    if (priorityOption) {
+      // 色を薄くするために透明度を追加
+      const color = priorityOption.color
+      return color + '20' // 20% opacity
+    }
+    
+    return 'white'
+  }
+
+  const getBorderColor = () => {
+    if (loading || !priorityOptions || priorityOptions.length === 0) {
+      // フォールバック色
+      switch (task.priority) {
+        case 'low': return '#28a745'
+        case 'medium': return '#ffc107'
+        case 'high': return '#fd7e14'
+        case 'urgent': return '#dc3545'
+        default: return '#e9ecef'
+      }
+    }
+    
+    // データベースの色を使用
+    const priorityOption = priorityOptions.find(option => option.name === task.priority)
+    return priorityOption ? priorityOption.color : '#e9ecef'
+  }
+
   return (
     <div style={{
-      backgroundColor: 'white',
+      backgroundColor: getBackgroundColor(),
       borderRadius: 6,
       padding: 12,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
       cursor: 'pointer',
-      transition: 'transform 0.1s',
-      position: 'relative'
+      transition: 'all 0.2s ease',
+      position: 'relative',
+      border: `2px solid ${getBorderColor()}`
     }}
     onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-1px)'
+      e.currentTarget.style.transform = 'translateY(-2px)'
+      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.transform = 'translateY(0)'
+      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
     }}>
       <div style={{
         display: 'flex',
@@ -250,7 +324,7 @@ export default function TaskCard({ task, onStatusChange, onTaskUpdate, onTaskDel
       
       {task.description && (
         <p style={{
-          margin: '0 0 8px 0',
+          margin: '0 0 12px 0',
           fontSize: 12,
           color: '#666',
           lineHeight: 1.4
@@ -262,51 +336,174 @@ export default function TaskCard({ task, onStatusChange, onTaskUpdate, onTaskDel
         </p>
       )}
       
+      {/* ステータス表示 - 大きく独立 */}
+      <div style={{
+        marginBottom: 12,
+        padding: 12,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 6,
+        border: '1px solid #e9ecef'
+      }}>
+        <div style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#666',
+          marginBottom: 4
+        }}>ステータス</div>
+        <select
+          value={task.status}
+          onChange={(e) => {
+            e.stopPropagation()
+            onTaskUpdate(task.id, { status: e.target.value as Task['status'] })
+          }}
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            border: '1px solid #ccc',
+            borderRadius: 4,
+            padding: '6px 8px',
+            width: '100%',
+            backgroundColor: 'white'
+          }}
+        >
+          {statusOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 優先度ボタン - 横並び */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#666',
+          marginBottom: 6
+        }}>優先度</div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(loading || !priorityOptions || priorityOptions.length === 0) ? (
+            // フォールバック用のボタン
+            <>
+              <button
+                onClick={(e) => handlePriorityChange(e, 'low')}
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  borderRadius: 4,
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  backgroundColor: task.priority === 'low' ? '#28a745' : '#e9ecef',
+                  color: task.priority === 'low' ? 'white' : '#666'
+                }}
+              >
+                低
+              </button>
+              <button
+                onClick={(e) => handlePriorityChange(e, 'medium')}
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  borderRadius: 4,
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  backgroundColor: task.priority === 'medium' ? '#ffc107' : '#e9ecef',
+                  color: task.priority === 'medium' ? 'white' : '#666'
+                }}
+              >
+                中
+              </button>
+              <button
+                onClick={(e) => handlePriorityChange(e, 'high')}
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  borderRadius: 4,
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  backgroundColor: task.priority === 'high' ? '#fd7e14' : '#e9ecef',
+                  color: task.priority === 'high' ? 'white' : '#666'
+                }}
+              >
+                高
+              </button>
+              <button
+                onClick={(e) => handlePriorityChange(e, 'urgent')}
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  borderRadius: 4,
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  backgroundColor: task.priority === 'urgent' ? '#dc3545' : '#e9ecef',
+                  color: task.priority === 'urgent' ? 'white' : '#666'
+                }}
+              >
+                緊急
+              </button>
+            </>
+          ) : (
+            // データベースから取得したボタン
+            priorityOptions.map((option) => (
+              <button
+                key={option.name}
+                onClick={(e) => handlePriorityChange(e, option.name)}
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  borderRadius: 4,
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  backgroundColor: task.priority === option.name ? option.color : '#e9ecef',
+                  color: task.priority === option.name ? 'white' : '#666'
+                }}
+              >
+                {option.label}
+              </button>
+            ))
+          )}
+        </div>
+        
+        {/* 最新の優先度変更情報 */}
+        {latestPriorityChange && (
+          <div style={{
+            marginTop: 6,
+            fontSize: 10,
+            color: '#666',
+            backgroundColor: '#f8f9fa',
+            padding: 6,
+            borderRadius: 3
+          }}>
+            <div>最終変更: {latestPriorityChange.changed_by_email || 'システム'}</div>
+            <div>{new Date(latestPriorityChange.changed_at).toLocaleString('ja-JP')}</div>
+            {latestPriorityChange.reason && (
+              <div>理由: {latestPriorityChange.reason}</div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginTop: 8
       }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8
-        }}>
-          <span style={{
-            backgroundColor: priorityColors[task.priority],
-            color: 'white',
-            fontSize: 10,
-            fontWeight: 'bold',
-            padding: '2px 6px',
-            borderRadius: 3,
-            textTransform: 'uppercase'
-          }}>
-            {task.priority}
-          </span>
-          
-          <select
-            value={task.status}
-            onChange={(e) => onStatusChange(task.id, e.target.value as Task['status'])}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              fontSize: 10,
-              padding: '2px 4px',
-              border: '1px solid #ccc',
-              borderRadius: 3,
-              backgroundColor: 'white'
-            }}
-          >
-            {statusOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div></div>
+        {formatDueDate(task.due_at)}
       </div>
-      
-      {formatDueDate(task.due_at)}
     </div>
   )
 }

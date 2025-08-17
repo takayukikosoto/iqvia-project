@@ -1,21 +1,19 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import Auth from './components/Auth'
 import Tasks from './pages/Tasks'
+import AdminDashboard from './pages/AdminDashboard'
+
+type CurrentPage = 'tasks' | 'admin'
 
 export default function App() {
   const { user, loading, signOut } = useAuth()
+  const [currentPage, setCurrentPage] = useState<CurrentPage>('tasks')
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontFamily: 'system-ui, sans-serif'
-      }}>
-        Loading...
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     )
   }
@@ -24,37 +22,62 @@ export default function App() {
     return <Auth onAuthSuccess={() => {}} />
   }
 
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'admin':
+        return <AdminDashboard />
+      case 'tasks':
+      default:
+        return <Tasks />
+    }
+  }
+
   return (
-    <div style={{ padding: 16, fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: 24,
-        borderBottom: '1px solid #ddd',
-        paddingBottom: 16
-      }}>
-        <h1>IQVIA × JTB タスク管理</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ color: '#666' }}>
-            {user.email}
-          </span>
-          <button
-            onClick={signOut}
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#dc3545',
-              color: 'white',
-              border: 'none',
-              borderRadius: 4,
-              cursor: 'pointer'
-            }}
-          >
-            ログアウト
-          </button>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-8">
+              <h1 className="text-2xl font-bold text-gray-900">IQVIA × JTB</h1>
+              <nav className="flex space-x-6">
+                <button
+                  onClick={() => setCurrentPage('tasks')}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentPage === 'tasks' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  タスク管理
+                </button>
+                <button
+                  onClick={() => setCurrentPage('admin')}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentPage === 'admin' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  管理者ダッシュボード
+                </button>
+              </nav>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">{user.email}</span>
+              <button
+                onClick={signOut}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+              >
+                ログアウト
+              </button>
+            </div>
+          </div>
         </div>
       </header>
-      <Tasks />
+      
+      <main className="max-w-7xl mx-auto">
+        {renderCurrentPage()}
+      </main>
     </div>
   )
 }

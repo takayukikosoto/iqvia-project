@@ -10,10 +10,10 @@ interface TaskCardProps {
 }
 
 const priorityColors = {
-  low: '#28a745',
-  medium: '#ffc107',
-  high: '#fd7e14',
-  urgent: '#dc3545'
+  low: '#28a745',    // 緑
+  medium: '#007bff', // 青
+  high: '#ffc107',   // 黄色
+  urgent: '#dc3545'  // 赤
 }
 
 const priorityLabels: Record<TaskPriority, string> = {
@@ -89,7 +89,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardP
         color: isOverdue ? '#dc3545' : '#666',
         fontWeight: isOverdue ? 'bold' : 'normal'
       }}>
-        Due: {date.toLocaleDateString('ja-JP')}
+        締め切り期限: {date.toLocaleDateString('ja-JP')}
         {isOverdue && ' (期限切れ)'}
       </div>
     )
@@ -239,12 +239,12 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardP
   // Get background color based on priority
   const getBackgroundColor = () => {
     if (loading || !priorityOptions || priorityOptions.length === 0) {
-      // フォールバック色
+      // フォールバック色（薄い色）
       switch (task.priority) {
-        case 'low': return '#e8f5e8'
-        case 'medium': return '#fff8e1'
-        case 'high': return '#fff3e0'
-        case 'urgent': return '#ffebee'
+        case 'low': return '#d4edda'      // 薄い緑
+        case 'medium': return '#cce5ff'   // 薄い青
+        case 'high': return '#fff3cd'     // 薄い黄色
+        case 'urgent': return '#f8d7da'   // 薄い赤
         default: return 'white'
       }
     }
@@ -264,10 +264,10 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardP
     if (loading || !priorityOptions || priorityOptions.length === 0) {
       // フォールバック色
       switch (task.priority) {
-        case 'low': return '#28a745'
-        case 'medium': return '#ffc107'
-        case 'high': return '#fd7e14'
-        case 'urgent': return '#dc3545'
+        case 'low': return '#28a745'    // 緑
+        case 'medium': return '#007bff' // 青
+        case 'high': return '#ffc107'   // 黄色
+        case 'urgent': return '#dc3545' // 赤
         default: return '#e9ecef'
       }
     }
@@ -304,7 +304,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardP
       }}>
         <h4 style={{
           margin: 0,
-          fontSize: 14,
+          fontSize: 18,
           fontWeight: 600,
           lineHeight: 1.3,
           flex: 1
@@ -472,7 +472,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardP
                     border: 'none',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    backgroundColor: task.priority === 'medium' ? '#ffc107' : '#e9ecef',
+                    backgroundColor: task.priority === 'medium' ? '#007bff' : '#e9ecef',
                     color: task.priority === 'medium' ? 'white' : '#666'
                   }}
                 >
@@ -487,7 +487,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardP
                     border: 'none',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    backgroundColor: task.priority === 'high' ? '#fd7e14' : '#e9ecef',
+                    backgroundColor: task.priority === 'high' ? '#ffc107' : '#e9ecef',
                     color: task.priority === 'high' ? 'white' : '#666'
                   }}
                 >

@@ -123,10 +123,10 @@ export function usePriority() {
     
     // Fallback colors for compatibility
     const fallbackColors: Record<string, string> = {
-      low: '#28a745',
-      medium: '#ffc107', 
-      high: '#fd7e14',
-      urgent: '#dc3545'
+      low: '#28a745',    // 緑
+      medium: '#007bff', // 青
+      high: '#ffc107',   // 黄色
+      urgent: '#dc3545'  // 赤
     }
     
     return fallbackColors[priorityName] || '#6c757d'

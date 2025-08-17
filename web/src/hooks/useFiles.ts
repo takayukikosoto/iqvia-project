@@ -220,6 +220,7 @@ export function useFiles(projectId: string) {
         .from('file_versions')
         .insert({
           file_id: fileId,
+          version: newVersionNumber,
           version_number: newVersionNumber,
           name: file.name,
           storage_path: uploadData.path,

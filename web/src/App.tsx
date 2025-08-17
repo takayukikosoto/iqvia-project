@@ -3,12 +3,14 @@ import { useAuth } from './hooks/useAuth'
 import Auth from './components/Auth'
 import Tasks from './pages/Tasks'
 import AdminDashboard from './pages/AdminDashboard'
+import TaskDetail from './pages/TaskDetail'
 
-type CurrentPage = 'tasks' | 'admin'
+type CurrentPage = 'tasks' | 'admin' | 'task-detail'
 
 export default function App() {
   const { user, loading, signOut } = useAuth()
   const [currentPage, setCurrentPage] = useState<CurrentPage>('tasks')
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
 
   if (loading) {
     return (
@@ -22,13 +24,29 @@ export default function App() {
     return <Auth onAuthSuccess={() => {}} />
   }
 
+  const handleTaskSelect = (taskId: string) => {
+    setSelectedTaskId(taskId)
+    setCurrentPage('task-detail')
+  }
+
+  const handleBackToTasks = () => {
+    setSelectedTaskId(null)
+    setCurrentPage('tasks')
+  }
+
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'admin':
         return <AdminDashboard />
+      case 'task-detail':
+        return selectedTaskId ? (
+          <TaskDetail taskId={selectedTaskId} onBack={handleBackToTasks} />
+        ) : (
+          <Tasks onTaskSelect={handleTaskSelect} />
+        )
       case 'tasks':
       default:
-        return <Tasks />
+        return <Tasks onTaskSelect={handleTaskSelect} />
     }
   }
 

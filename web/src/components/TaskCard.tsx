@@ -7,6 +7,7 @@ interface TaskCardProps {
   task: Task
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void
   onTaskDelete: (taskId: string) => void
+  onTaskSelect?: (taskId: string) => void
 }
 
 const priorityColors = {
@@ -30,7 +31,7 @@ const statusOptions: { value: Task['status']; label: string }[] = [
   { value: 'resolved', label: '対応済み' }
 ]
 
-export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardProps) {
+export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelect }: TaskCardProps) {
   const { priorityOptions, changePriority, getPriorityColor, getPriorityLabel, loading, getPriorityHistory } = usePriority()
   const { links, loading: linksLoading, addLink, updateLink, deleteLink } = useTaskLinks(task.id)
   
@@ -279,15 +280,16 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardP
 
   return (
     <div style={{
+      border: `2px solid ${getBorderColor()}`,
       backgroundColor: getBackgroundColor(),
-      borderRadius: 6,
+      borderRadius: 8,
       padding: 12,
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      margin: '4px 0',
       cursor: 'pointer',
       transition: 'all 0.2s ease',
-      position: 'relative',
-      border: `2px solid ${getBorderColor()}`
+      position: 'relative'
     }}
+    onClick={() => onTaskSelect?.(task.id)}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = 'translateY(-2px)'
       e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'

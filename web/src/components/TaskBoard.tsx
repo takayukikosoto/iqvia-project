@@ -8,6 +8,7 @@ interface TaskBoardProps {
   tasks: Task[]
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void
   onTaskDelete: (taskId: string) => void
+  onTaskSelect?: (taskId: string) => void
 }
 
 const statusLabels: Record<TaskStatus, string> = {
@@ -24,7 +25,7 @@ const statusColors: Record<TaskStatus, string> = {
   resolved: 'bg-purple-200'
 }
 
-export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete }: TaskBoardProps) {
+export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskSelect }: TaskBoardProps) {
   const statuses: (keyof typeof statusLabels)[] = ['todo', 'review', 'done', 'resolved']
   
   const getTasksByStatus = (status: string) => {
@@ -71,6 +72,7 @@ export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete }: TaskBoa
                 task={task}
                 onTaskUpdate={onTaskUpdate}
                 onTaskDelete={onTaskDelete}
+                onTaskSelect={onTaskSelect}
               />
             ))}
           </div>

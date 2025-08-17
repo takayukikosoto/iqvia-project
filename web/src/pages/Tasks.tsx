@@ -29,7 +29,11 @@ interface Project {
   created_at: string
 }
 
-export default function Tasks() {
+interface TasksProps {
+  onTaskSelect?: (taskId: string) => void
+}
+
+export default function Tasks({ onTaskSelect }: TasksProps) {
   const { user } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -285,9 +289,10 @@ export default function Tasks() {
           <div>読み込み中...</div>
         ) : activeTab === 'tasks' ? (
           <TaskBoard 
-            tasks={tasks} 
+            tasks={tasks}
             onTaskUpdate={handleTaskUpdate}
             onTaskDelete={handleTaskDelete}
+            onTaskSelect={onTaskSelect}
           />
         ) : (
           <div className="space-y-4">

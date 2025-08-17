@@ -47,3 +47,19 @@ export type Profile = {
   created_at: string
   updated_at?: string
 }
+
+export type TaskLink = {
+  id: string
+  task_id: string
+  title: string
+  url: string
+  link_type: 'url' | 'file' | 'storage'
+  description?: string
+  file_id?: string
+  storage_provider?: string
+  storage_key?: string
+  created_at: string
+  created_by?: string
+  updated_at?: string
+  updated_by?: string
+}

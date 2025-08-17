@@ -34,22 +34,28 @@ export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete }: TaskBoa
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
       gap: 16,
-      minHeight: '60vh'
+      minHeight: '60vh',
+      padding: '0 8px'
     }}>
       {statuses.map(status => (
         <div key={status} style={{
           backgroundColor: statusColors[status],
           borderRadius: 8,
-          padding: 16,
-          minHeight: 400
+          padding: 12,
+          minHeight: 400,
+          minWidth: 280,
+          maxWidth: '100%'
         }}>
           <h3 style={{
-            margin: '0 0 16px 0',
+            margin: '0 0 12px 0',
             fontSize: 16,
             fontWeight: 600,
-            color: '#333'
+            color: '#333',
+            textAlign: 'center',
+            padding: '8px 0',
+            borderBottom: '2px solid rgba(0,0,0,0.1)'
           }}>
             {statusLabels[status]} ({getTasksByStatus(status).length})
           </h3>

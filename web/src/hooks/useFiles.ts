@@ -88,6 +88,7 @@ export function useFiles(projectId: string) {
           project_id: projectId,
           name: file.name,
           provider: 'supabase',
+          storage_path: uploadData.path,
           current_version: 1,
           created_by: (await supabase.auth.getUser()).data.user?.id
         })
@@ -104,12 +105,24 @@ export function useFiles(projectId: string) {
           version: 1,
           size_bytes: file.size,
           storage_key: uploadData.path,
+          storage_path: uploadData.path,
           uploaded_by: (await supabase.auth.getUser()).data.user?.id
         })
 
       if (versionError) throw versionError
 
-      // 4. ファイル一覧を再取得
+      // 4. ファイルの合計サイズを更新
+      const { error: updateError } = await supabase
+        .from('files')
+        .update({
+          total_size_bytes: file.size,
+          total_versions: 1
+        })
+        .eq('id', fileData.id)
+
+      if (updateError) throw updateError
+
+      // 5. ファイル一覧を再取得
       await fetchFiles()
       
       return fileData.id
@@ -123,11 +136,20 @@ export function useFiles(projectId: string) {
   // ファイルダウンロード
   const downloadFile = async (filePath: string, fileName: string) => {
     try {
+      console.log('Attempting to download file:', { filePath, fileName })
+      
+      if (!filePath || filePath.trim() === '') {
+        throw new Error('ファイルパスが指定されていません')
+      }
+
       const { data, error } = await supabase.storage
         .from('files')
         .download(filePath)
 
-      if (error) throw error
+      if (error) {
+        console.error('Storage download error:', error)
+        throw error
+      }
 
       // ブラウザでダウンロード
       const url = URL.createObjectURL(data)
@@ -138,6 +160,8 @@ export function useFiles(projectId: string) {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      
+      console.log('File download completed successfully')
     } catch (err) {
       console.error('Error downloading file:', err)
       setError(err instanceof Error ? err.message : 'Failed to download file')
@@ -240,7 +264,8 @@ export function useFiles(projectId: string) {
         .update({
           current_version_id: versionData.id,
           total_versions: newVersionNumber,
-          total_size_bytes: fileData.total_size_bytes + file.size,
+          total_size_bytes: (fileData.total_size_bytes || 0) + file.size,
+          storage_path: uploadData.path, // 最新バージョンのパスを更新
           updated_by: (await supabase.auth.getUser()).data.user?.id
         })
         .eq('id', fileId)

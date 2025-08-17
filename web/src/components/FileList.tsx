@@ -123,8 +123,16 @@ export default function FileList({ files, loading, onDownload, onDelete, onGetVe
                   </svg>
                 </button>
                 <button
-                  onClick={() => onDownload(file.storage_path || '', file.name)}
-                  className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-1"
+                  onClick={() => {
+                    console.log('Download button clicked:', { storage_path: file.storage_path, name: file.name, file })
+                    if (!file.storage_path) {
+                      alert('ファイルのストレージパスが見つかりません。ファイルを再アップロードしてください。')
+                      return
+                    }
+                    onDownload(file.storage_path, file.name)
+                  }}
+                  className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-1 disabled:bg-gray-400"
+                  disabled={!file.storage_path}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

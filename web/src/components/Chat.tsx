@@ -45,6 +45,8 @@ export default function Chat({ projectId }: ChatProps) {
     if (!projectId) return
     
     setLoading(true)
+    console.log('Loading messages for project ID:', projectId)
+    
     const { data, error } = await supabase
       .from('chat_messages')
       .select(`
@@ -60,27 +62,42 @@ export default function Chat({ projectId }: ChatProps) {
 
     if (error) {
       console.error('Chat messages load error:', error)
+      setMessages([])
     } else {
-      // Get user profiles for messages
-      const userIds = [...new Set(data.map(msg => msg.user_id))]
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', userIds)
+      console.log('Loaded chat messages:', JSON.stringify(data, null, 2))
       
-      const profileMap = profiles?.reduce((acc, profile) => {
-        acc[profile.user_id] = profile.display_name
-        return acc
-      }, {} as Record<string, string>) || {}
+      // Try to get user profiles, but don't fail if it doesn't work
+      const userIds = [...new Set(data.map(msg => msg.user_id))]
+      console.log('User IDs for profiles:', userIds)
+      
+      let profileMap: Record<string, string> = {}
+      
+      if (userIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_id, display_name')
+          .in('user_id', userIds)
+        
+        if (profileError) {
+          console.warn('Profile load error (non-critical):', profileError)
+        }
+        
+        profileMap = profiles?.reduce((acc, profile) => {
+          acc[profile.user_id] = profile.display_name
+          return acc
+        }, {} as Record<string, string>) || {}
+      }
 
       const messagesWithUsers = data.map(msg => ({
         ...msg,
         user: {
-          email: profileMap[msg.user_id] || 'Unknown User',
-          name: profileMap[msg.user_id]
+          email: profileMap[msg.user_id] || `User ${msg.user_id.slice(0, 8)}`,
+          name: profileMap[msg.user_id] || `User ${msg.user_id.slice(0, 8)}`
         }
       }))
       
+      console.log('Messages with users:', JSON.stringify(messagesWithUsers, null, 2))
+      console.log('Setting messages state with', messagesWithUsers.length, 'messages')
       setMessages(messagesWithUsers)
     }
     setLoading(false)
@@ -112,8 +129,8 @@ export default function Chat({ projectId }: ChatProps) {
     const beforeCursor = newMessage.substring(0, cursorPosition)
     const afterCursor = newMessage.substring(cursorPosition)
     
-    // @query を @email に置換
-    const mentionText = `@${member.email.split('@')[0]}`
+    // @query を @username に置換
+    const mentionText = `@${member.username}`
     const beforeMention = beforeCursor.replace(/@[a-zA-Z0-9._-]*$/, '')
     const newText = beforeMention + mentionText + ' ' + afterCursor
     
@@ -160,6 +177,8 @@ export default function Chat({ projectId }: ChatProps) {
       console.log('Message sent successfully:', data)
       setNewMessage('')
       setShowMentionSuggestions(false)
+      // メッセージ送信後に即座にメッセージを再読み込み
+      loadMessages()
     }
   }
 
@@ -186,17 +205,23 @@ export default function Chat({ projectId }: ChatProps) {
   useEffect(() => {
     if (!projectId) return
 
+    console.log('Setting up realtime subscription for project:', projectId)
+    
     const channel = supabase
-      .channel('chat_messages')
+      .channel(`chat_messages_${projectId}`)
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `project_id=eq.${projectId}` },
-        () => {
+        (payload) => {
+          console.log('Realtime message received:', payload)
           loadMessages()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status)
+      })
 
     return () => {
+      console.log('Cleaning up realtime subscription')
       supabase.removeChannel(channel)
     }
   }, [projectId])
@@ -281,7 +306,11 @@ export default function Chat({ projectId }: ChatProps) {
             最初のメッセージを送信してみましょう！
           </div>
         ) : (
-          messages.map((message, index) => {
+          <div>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
+              デバッグ: {messages.length}件のメッセージ
+            </div>
+            {messages.map((message, index) => {
             const prevMessage = messages[index - 1]
             const showDate = !prevMessage || 
               formatDate(message.created_at) !== formatDate(prevMessage.created_at)
@@ -336,7 +365,8 @@ export default function Chat({ projectId }: ChatProps) {
                 </div>
               </div>
             )
-          })
+          })}
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -397,7 +427,7 @@ export default function Chat({ projectId }: ChatProps) {
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                 >
                   <div style={{ fontWeight: 600, fontSize: 14 }}>
-                    @{member.email.split('@')[0]}
+                    @{member.username}
                   </div>
                   {member.display_name && (
                     <div style={{ fontSize: 12, color: '#6b7280' }}>

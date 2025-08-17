@@ -2,7 +2,7 @@ import React from 'react'
 import TaskCard from './TaskCard'
 import { Task } from '../types'
 
-type TaskStatus = 'todo' | 'doing' | 'review' | 'done' | 'blocked'
+type TaskStatus = 'todo' | 'review' | 'done' | 'resolved'
 
 interface TaskBoardProps {
   tasks: Task[]
@@ -12,35 +12,29 @@ interface TaskBoardProps {
 
 const statusLabels: Record<TaskStatus, string> = {
   todo: '未着手',
-  doing: '進行中',
   review: 'レビュー中',
   done: '完了',
-  blocked: '停止中'
+  resolved: '対応済み'
 }
 
 const statusColors: Record<TaskStatus, string> = {
   todo: 'bg-gray-200',
-  doing: 'bg-yellow-200',
   review: 'bg-blue-200',
   done: 'bg-green-200',
-  blocked: 'bg-red-200'
+  resolved: 'bg-purple-200'
 }
 
 export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete }: TaskBoardProps) {
-  const statuses: (keyof typeof statusLabels)[] = ['todo', 'doing', 'review', 'done', 'blocked']
+  const statuses: (keyof typeof statusLabels)[] = ['todo', 'review', 'done', 'resolved']
   
   const getTasksByStatus = (status: string) => {
     return tasks.filter(task => task.status === status)
   }
 
-  const handleStatusChange = (taskId: string, newStatus: Task['status']) => {
-    onTaskUpdate(taskId, { status: newStatus })
-  }
-
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(5, 1fr)',
+      gridTemplateColumns: 'repeat(4, 1fr)',
       gap: 16,
       minHeight: '60vh'
     }}>
@@ -69,7 +63,6 @@ export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete }: TaskBoa
               <TaskCard
                 key={task.id}
                 task={task}
-                onStatusChange={handleStatusChange}
                 onTaskUpdate={onTaskUpdate}
                 onTaskDelete={onTaskDelete}
               />

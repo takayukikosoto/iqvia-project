@@ -24,10 +24,9 @@ const priorityLabels: Record<TaskPriority, string> = {
 
 const statusOptions: { value: Task['status']; label: string }[] = [
   { value: 'todo', label: '未着手' },
-  { value: 'doing', label: '進行中' },
   { value: 'review', label: 'レビュー中' },
   { value: 'done', label: '完了' },
-  { value: 'blocked', label: '停止中' }
+  { value: 'resolved', label: '対応済み' }
 ]
 
 export default function TaskCard({ task, onTaskUpdate, onTaskDelete }: TaskCardProps) {

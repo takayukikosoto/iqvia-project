@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { quickTestLogin } from '../utils/testSetup'
+import { quickTestLogin, createAdminUser } from '../utils/testSetup'
 
 type AuthMode = 'login' | 'signup'
 
@@ -219,6 +219,35 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
           }}
         >
           テストログイン
+        </button>
+        
+        <button
+          onClick={async () => {
+            setLoading(true)
+            try {
+              const result = await createAdminUser()
+              if (result.success) {
+                setMessage({ type: 'success', text: 'admin@test.comアカウントを作成しました' })
+              } else {
+                setMessage({ type: 'error', text: result.error || 'Adminユーザー作成に失敗' })
+              }
+            } catch (error: any) {
+              setMessage({ type: 'error', text: error.message })
+            } finally {
+              setLoading(false)
+            }
+          }}
+          disabled={loading}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            cursor: loading ? 'not-allowed' : 'pointer'
+          }}
+        >
+          Adminユーザー作成
         </button>
       </div>
       

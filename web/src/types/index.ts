@@ -2,7 +2,7 @@ export type Task = {
   id: string
   title: string
   description?: string
-  status: 'todo' | 'doing' | 'review' | 'done' | 'blocked'
+  status: 'todo' | 'review' | 'done' | 'resolved'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   due_at?: string
   project_id: string
@@ -13,6 +13,20 @@ export type Task = {
 
 export type TaskPriority = Task['priority']
 export type TaskStatus = Task['status']
+
+export type CustomStatus = {
+  id: string
+  project_id: string
+  name: string
+  label: string
+  color: string
+  order_index: number
+  is_active: boolean
+  created_by?: string
+  created_at: string
+  updated_by?: string
+  updated_at?: string
+}
 
 export type Project = {
   id: string

@@ -69,3 +69,50 @@ export const quickTestLogin = async () => {
     return { success: false, error: err.message }
   }
 }
+
+// Create admin user using proper Supabase Auth API
+export const createAdminUser = async () => {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: 'admin@test.com',
+      password: 'password123',
+      options: {
+        emailRedirectTo: undefined // Skip email confirmation in dev
+      }
+    })
+
+    if (error) {
+      console.error('Admin signup error:', error)
+      return { success: false, error: error.message }
+    }
+
+    if (data.user) {
+      // Create profile
+      await supabase.from('profiles').insert([{
+        user_id: data.user.id,
+        display_name: 'Admin User',
+        company: 'Admin Co.'
+      }])
+
+      // Add to sample org and project with admin role
+      await supabase.from('organization_memberships').insert([{
+        org_id: '11111111-1111-1111-1111-111111111111',
+        user_id: data.user.id,
+        role: 'admin'
+      }])
+
+      await supabase.from('project_memberships').insert([{
+        project_id: '22222222-2222-2222-2222-222222222222',
+        user_id: data.user.id,
+        role: 'project_manager'
+      }])
+
+      return { success: true, user: data.user }
+    }
+
+    return { success: false, error: 'No user created' }
+  } catch (err: any) {
+    console.error('Admin user creation failed:', err)
+    return { success: false, error: err.message }
+  }
+}

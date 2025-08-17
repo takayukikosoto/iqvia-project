@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import TaskBoard from '../components/TaskBoard'
 import CreateTaskModal from '../components/CreateTaskModal'
+import Chat from '../components/Chat'
 import { Task, Project } from '../types'
 import { useAuth } from '../hooks/useAuth'
 
@@ -92,6 +93,9 @@ export default function Tasks() {
     if (error) {
       console.error('Task update error:', error)
       setError(error.message)
+    } else {
+      // タスク更新後にページをリロード
+      window.location.reload()
     }
   }
 
@@ -112,6 +116,8 @@ export default function Tasks() {
       setError(error.message)
     } else {
       setShowCreateModal(false)
+      // タスク作成後にページをリロード
+      window.location.reload()
     }
   }
 
@@ -126,80 +132,87 @@ export default function Tasks() {
     if (error) {
       console.error('Task delete error:', error)
       setError(error.message)
+    } else {
+      // タスク削除後にページをリロード
+      window.location.reload()
     }
   }
 
   return (
-    <div>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: 24 
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <h2>タスク管理</h2>
-          {projects.length > 0 && (
-            <select
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                border: '1px solid #ccc',
-                borderRadius: 4,
-                fontSize: 14
-              }}
-            >
-              {projects.map(project => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          )}
+    <div style={{ display: 'flex', gap: 24, height: 'calc(100vh - 140px)' }}>
+      {/* Left Panel - Tasks */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: 24 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <h2>タスク管理</h2>
+            {projects.length > 0 && (
+              <select
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  fontSize: 14
+                }}
+              >
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 14
+            }}
+          >
+            新しいタスク
+          </button>
         </div>
-        
-        <button
-          onClick={() => setShowCreateModal(true)}
-          disabled={!selectedProject}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
+
+        {error && (
+          <div style={{
+            padding: 12,
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            border: '1px solid #f5c6cb',
             borderRadius: 4,
-            cursor: selectedProject ? 'pointer' : 'not-allowed',
-            opacity: selectedProject ? 1 : 0.6
-          }}
-        >
-          新しいタスク
-        </button>
+            marginBottom: 16
+          }}>
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div>読み込み中...</div>
+        ) : (
+          <TaskBoard 
+            tasks={tasks} 
+            onTaskUpdate={handleTaskUpdate}
+            onTaskDelete={handleTaskDelete}
+          />
+        )}
       </div>
 
-      {error && (
-        <div style={{
-          marginBottom: 16,
-          padding: 12,
-          backgroundColor: '#f8d7da',
-          color: '#721c24',
-          border: '1px solid #f5c6cb',
-          borderRadius: 4
-        }}>
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <p>Loading...</p>
-      ) : projects.length === 0 ? (
-        <p>プロジェクトがありません。管理者にプロジェクトへの参加を依頼してください。</p>
-      ) : (
-        <TaskBoard
-          tasks={tasks}
-          onTaskUpdate={handleTaskUpdate}
-          onTaskDelete={handleTaskDelete}
-        />
-      )}
+      {/* Right Panel - Chat */}
+      <div style={{ width: 350, minWidth: 350, height: '100%' }}>
+        <Chat projectId={selectedProject} />
+      </div>
 
       {showCreateModal && (
         <CreateTaskModal

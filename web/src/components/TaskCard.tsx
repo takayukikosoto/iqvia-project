@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import { Task, TaskPriority, TaskLink } from '../types'
+import React, { useState, useRef, useEffect } from 'react'
 import { usePriority } from '../hooks/usePriority'
+import { useFiles } from '../hooks/useFiles'
+import { Task, TaskPriority, CustomStatus, User } from '../types'
+import { supabase } from '../supabaseClient'
 import { useTaskLinks } from '../hooks/useTaskLinks'
 
 interface TaskCardProps {
@@ -34,6 +36,7 @@ const statusOptions: { value: Task['status']; label: string }[] = [
 export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelect }: TaskCardProps) {
   const { priorityOptions, changePriority, getPriorityColor, getPriorityLabel, loading, getPriorityHistory } = usePriority()
   const { links, loading: linksLoading, addLink, updateLink, deleteLink } = useTaskLinks(task.id)
+  const { files } = useFiles(task.project_id, task.id)
   
   const [isEditing, setIsEditing] = useState(false)
   const [showLinks, setShowLinks] = useState(false)
@@ -285,11 +288,9 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
       borderRadius: 8,
       padding: 12,
       margin: '4px 0',
-      cursor: 'pointer',
       transition: 'all 0.2s ease',
       position: 'relative'
     }}
-    onClick={() => onTaskSelect?.(task.id)}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = 'translateY(-2px)'
       e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
@@ -334,8 +335,26 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
             }}
             title={`リンク (${links.length})`}
           >
-            🔗
+            🔗 {links.length}
           </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+            style={{
+              padding: 2,
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: files.length > 0 ? '#28a745' : '#666'
+            }}
+            title={`ファイル (${files.length})`}
+          >
+            📁 {files.length}
+          </button>
+          
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -352,6 +371,24 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
             title="編集"
           >
             ✏️
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onTaskSelect?.(task.id)
+            }}
+            style={{
+              padding: 2,
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: '#007bff'
+            }}
+            title="詳細"
+          >
+            📋
           </button>
           <button
             onClick={(e) => {

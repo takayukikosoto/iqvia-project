@@ -31,7 +31,7 @@ export type CustomStatus = {
 export type Project = {
   id: string
   name: string
-  org_id: string
+  created_at: string
 }
 
 export type User = {

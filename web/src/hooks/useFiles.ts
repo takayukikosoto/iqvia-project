@@ -40,7 +40,7 @@ export interface FileVersion {
   created_at?: string
 }
 
-export function useFiles(projectId: string) {
+export function useFiles(projectId: string, taskId?: string) {
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -51,10 +51,17 @@ export function useFiles(projectId: string) {
     
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('files')
         .select('*')
         .eq('project_id', projectId)
+
+      // タスクIDが指定されている場合、そのタスクのファイルのみ取得
+      if (taskId) {
+        query = query.like('storage_path', `${projectId}/task_${taskId}/%`)
+      }
+
+      const { data, error } = await query
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -73,7 +80,10 @@ export function useFiles(projectId: string) {
       // 1. Supabase Storageにファイルアップロード
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}.${fileExt}`
-      const filePath = `${projectId}/${fileName}`
+      // タスクIDが指定されている場合はタスク専用フォルダに保存
+      const filePath = taskId 
+        ? `${projectId}/task_${taskId}/${fileName}`
+        : `${projectId}/${fileName}`
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('files')
@@ -142,13 +152,26 @@ export function useFiles(projectId: string) {
         throw new Error('ファイルパスが指定されていません')
       }
 
+      // パスの前後のスラッシュを正規化
+      const normalizedPath = filePath.replace(/^\/+|\/+$/g, '')
+      console.log('Normalized path:', normalizedPath)
+
       const { data, error } = await supabase.storage
         .from('files')
-        .download(filePath)
+        .download(normalizedPath)
 
       if (error) {
         console.error('Storage download error:', error)
-        throw error
+        
+        // 具体的なエラー情報をログに出力
+        console.error('Error details:', {
+          message: error.message,
+          path: normalizedPath,
+          error: error
+        })
+        
+        // より詳細なエラーメッセージを提供
+        throw new Error(`ファイルダウンロードに失敗しました: ${error.message || 'ファイルが見つからない可能性があります'}`)
       }
 
       // ブラウザでダウンロード
@@ -231,7 +254,11 @@ export function useFiles(projectId: string) {
       // 3. Supabase Storageにファイルアップロード
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}_v${newVersionNumber}.${fileExt}`
-      const filePath = `${fileData.project_id}/${fileName}`
+      // 既存ファイルのパスから適切なフォルダを判定
+      const isTaskFile = fileData.storage_path?.includes('/task_')
+      const filePath = isTaskFile 
+        ? `${fileData.project_id}/${fileData.storage_path.split('/').slice(1, 2).join('/')}/${fileName}`
+        : `${fileData.project_id}/${fileName}`
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('files')

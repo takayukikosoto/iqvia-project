@@ -51,7 +51,7 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
   const loadProjects = async () => {
     const { data, error } = await supabase
       .from('projects')
-      .select('id, name, org_id, created_at')
+      .select('id, name, created_at')
     if (error) {
       console.error('Projects load error:', error)
     } else {

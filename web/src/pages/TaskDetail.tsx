@@ -16,9 +16,9 @@ interface TaskDetailProps {
 export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
   const { priorityOptions, changePriority, getPriorityColor, getPriorityLabel, loading: priorityLoading } = usePriority()
   const { links, loading: linksLoading, addLink, updateLink, deleteLink } = useTaskLinks(taskId)
-  const { files, loading: filesLoading, uploadFile, downloadFile, deleteFile } = useFiles('')
   
   const [task, setTask] = useState<Task | null>(null)
+  const { files, loading: filesLoading, uploadFile, downloadFile, deleteFile } = useFiles(task?.project_id || '', taskId)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState('')
@@ -176,13 +176,19 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setShowFiles(!showFiles)}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
                   showFiles 
                     ? 'bg-blue-100 text-blue-700' 
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
-                {showFiles ? 'ファイル非表示' : 'ファイル表示'}
+                <span>📁</span>
+                <span>{showFiles ? 'ファイル非表示' : 'ファイル表示'}</span>
+                {files.length > 0 && (
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                    {files.length}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setShowChat(!showChat)}
@@ -416,7 +422,21 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
             {/* Files */}
             {showFiles && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">ファイル</h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    ファイル ({files.length})
+                  </h3>
+                </div>
+                
+                {/* File Upload */}
+                <div className="mb-6">
+                  <FileUpload 
+                    onFileUpload={uploadFile}
+                    loading={filesLoading}
+                  />
+                </div>
+                
+                {/* File List */}
                 <FileList 
                   files={files}
                   loading={filesLoading}

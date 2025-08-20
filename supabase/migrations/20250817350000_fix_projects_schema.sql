@@ -20,7 +20,11 @@ ALTER TABLE public.projects
 ADD CONSTRAINT projects_organization_id_fkey 
 FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
 
--- Update existing roles to new values first
+-- Update project_memberships role values to match admin dashboard
+ALTER TABLE public.project_memberships 
+DROP CONSTRAINT IF EXISTS project_memberships_role_check;
+
+-- Update existing roles to new values
 UPDATE public.project_memberships 
 SET role = CASE 
   WHEN role = 'project_manager' THEN 'admin'
@@ -29,10 +33,7 @@ SET role = CASE
   ELSE 'member'  -- Default fallback
 END;
 
--- Update project_memberships role values to match admin dashboard
-ALTER TABLE public.project_memberships 
-DROP CONSTRAINT IF EXISTS project_memberships_role_check;
-
+-- Add constraint after data is cleaned
 ALTER TABLE public.project_memberships 
 ADD CONSTRAINT project_memberships_role_check 
 CHECK (role IN ('admin', 'member', 'viewer'));

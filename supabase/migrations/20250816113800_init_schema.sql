@@ -1,14 +1,7 @@
 -- Imported from iqvia_jtb_migrations/001_schema.sql
 -- Schema for IQVIA × JTB Task Management Tool (Supabase/PostgreSQL)
 create extension if not exists pgcrypto;
-create table if not exists public.profiles (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  display_name text not null,
-  company text,
-  avatar_url text,
-  created_at timestamptz default now(),
-  updated_at timestamptz
-);
+-- profiles table definition moved to 20250820200000_create_profiles_table.sql
 create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,

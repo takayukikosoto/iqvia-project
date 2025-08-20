@@ -4,8 +4,9 @@ import Auth from './components/Auth'
 import Tasks from './pages/Tasks'
 import AdminDashboard from './pages/AdminDashboard'
 import TaskDetail from './pages/TaskDetail'
+import MyPage from './pages/MyPage'
 
-type CurrentPage = 'tasks' | 'admin' | 'task-detail'
+type CurrentPage = 'tasks' | 'admin' | 'mypage' | 'task-detail'
 
 export default function App() {
   const { user, loading, signOut } = useAuth()
@@ -38,6 +39,8 @@ export default function App() {
     switch (currentPage) {
       case 'admin':
         return <AdminDashboard />
+      case 'mypage':
+        return <MyPage />
       case 'task-detail':
         return selectedTaskId ? (
           <TaskDetail taskId={selectedTaskId} onBack={handleBackToTasks} />
@@ -67,6 +70,16 @@ export default function App() {
                   }`}
                 >
                   タスク管理
+                </button>
+                <button
+                  onClick={() => setCurrentPage('mypage')}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentPage === 'mypage' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  マイページ
                 </button>
                 <button
                   onClick={() => setCurrentPage('admin')}

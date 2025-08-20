@@ -114,9 +114,7 @@ create trigger set_updated_at_files
   before update on public.files
   for each row execute function public.set_updated_columns();
 
-create trigger set_updated_at_profiles
-  before update on public.profiles
-  for each row execute function public.set_updated_columns();
+-- profiles trigger moved to 20250820200000_create_profiles_table.sql
 
 -- Notification triggers
 create trigger notify_on_task_change

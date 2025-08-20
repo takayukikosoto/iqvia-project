@@ -116,7 +116,7 @@ export function useFiles(projectId: string, taskId?: string) {
           size_bytes: file.size,
           storage_key: uploadData.path,
           storage_path: uploadData.path,
-          uploaded_by: (await supabase.auth.getUser()).data.user?.id
+          uploaded_by: (await supabase.auth.getSession()).data.session?.user?.id
         })
 
       if (versionError) throw versionError
@@ -293,7 +293,7 @@ export function useFiles(projectId: string, taskId?: string) {
           total_versions: newVersionNumber,
           total_size_bytes: (fileData.total_size_bytes || 0) + file.size,
           storage_path: uploadData.path, // 最新バージョンのパスを更新
-          updated_by: (await supabase.auth.getUser()).data.user?.id
+          updated_by: (await supabase.auth.getSession()).data.session?.user?.id
         })
         .eq('id', fileId)
 

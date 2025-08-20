@@ -1,11 +1,16 @@
--- Check if admin@test.com exists in auth.users
-SELECT id, email, email_confirmed_at, created_at 
+-- Check if admin@kst.com exists in auth.users
+SELECT id, email, raw_user_meta_data, email_confirmed_at, created_at 
 FROM auth.users 
-WHERE email = 'admin@test.com';
+WHERE email = 'admin@kst.com';
 
 -- Check all auth users
-SELECT id, email, email_confirmed_at, created_at 
+SELECT id, email, raw_user_meta_data, email_confirmed_at, created_at 
 FROM auth.users 
+ORDER BY created_at DESC;
+
+-- Check profiles table
+SELECT user_id, display_name, role, company, created_at 
+FROM profiles 
 ORDER BY created_at DESC;
 
 -- Check organization members

@@ -74,13 +74,13 @@ export function useMentions(projectId: string) {
   // 自分へのメンション一覧取得
   const fetchMyMentions = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return
 
       const { data, error } = await supabase
         .from('mentions')
         .select('*')
-        .eq('mentioned_user_id', user.id)
+        .eq('mentioned_user_id', session.user.id)
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
 

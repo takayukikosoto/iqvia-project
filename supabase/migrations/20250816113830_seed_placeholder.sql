@@ -9,12 +9,8 @@ insert into auth.users (id, email, created_at) values
   ('550e8400-e29b-41d4-a716-446655440003', 'dev@vendor.com', now())
 on conflict (id) do nothing;
 
--- Create profiles
-insert into public.profiles (user_id, display_name, company) values
-  ('550e8400-e29b-41d4-a716-446655440001', 'IQVIA Admin', 'IQVIA'),
-  ('550e8400-e29b-41d4-a716-446655440002', 'JTB PM', 'JTB'),
-  ('550e8400-e29b-41d4-a716-446655440003', 'Vendor Dev', 'Vendor Co.')
-on conflict (user_id) do nothing;
+-- Create profiles (moved to 20250820200000_create_profiles_table.sql)
+-- Profiles will be created through auth system instead of seed data
 
 -- Create sample organization
 insert into public.organizations (id, name, created_by) values

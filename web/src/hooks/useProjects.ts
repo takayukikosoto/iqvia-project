@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 
 export interface Project {
   id: string
-  org_id: string
+  organization_id: string
   name: string
   start_date?: string
   end_date?: string
@@ -37,8 +37,8 @@ export function useProjects(organizationId?: string) {
   const fetchProjects = async () => {
     try {
       setLoading(true)
-      const { data: user } = await supabase.auth.getUser()
-      if (!user.user) throw new Error('User not authenticated')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('User not authenticated')
 
       // 組織ID指定の場合は組織のプロジェクト、未指定の場合はユーザーが参加する全プロジェクト
       let query = supabase
@@ -51,7 +51,7 @@ export function useProjects(organizationId?: string) {
 
       if (organizationId) {
         // 指定組織のプロジェクト
-        query = query.eq('org_id', organizationId)
+        query = query.eq('organization_id', organizationId)
         const { data, error } = await query
         if (error) throw error
         setProjects(data || [])
@@ -66,7 +66,7 @@ export function useProjects(organizationId?: string) {
               organization:organizations(id, name)
             )
           `)
-          .eq('user_id', user.user.id)
+          .eq('user_id', session.user.id)
 
         if (membershipError) throw membershipError
 
@@ -91,17 +91,17 @@ export function useProjects(organizationId?: string) {
     description?: string
   ): Promise<string | null> => {
     try {
-      const { data: user } = await supabase.auth.getUser()
-      if (!user.user) throw new Error('User not authenticated')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('User not authenticated')
 
       // 1. プロジェクトを作成（descriptionは現在のスキーマにないため除外）
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert({
-          org_id: orgId, // 現在のスキーマではorg_id
+          organization_id: orgId,
           name,
           status: 'active',
-          created_by: user.user.id
+          created_by: session.user.id
         })
         .select()
         .single()
@@ -113,8 +113,8 @@ export function useProjects(organizationId?: string) {
         .from('project_memberships')
         .insert({
           project_id: projectData.id,
-          user_id: user.user.id,
-          role: 'project_manager' // 現在のスキーマではproject_manager
+          user_id: session.user.id,
+          role: 'admin' // マイグレーションでadminに変更済み
         })
 
       if (membershipError) throw membershipError

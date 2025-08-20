@@ -1,6 +1,6 @@
 -- Row Level Security (RLS) Policies
 -- Enable RLS on all tables
-alter table public.profiles enable row level security;
+-- profiles table RLS moved to 20250820200000_create_profiles_table.sql
 alter table public.organizations enable row level security;
 alter table public.organization_memberships enable row level security;
 alter table public.projects enable row level security;
@@ -53,15 +53,7 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Profiles: Users can see all profiles, but only update their own
-create policy "Users can view all profiles" on public.profiles
-  for select using (true);
-
-create policy "Users can update own profile" on public.profiles
-  for update using (user_id = auth.uid());
-
-create policy "Users can insert own profile" on public.profiles
-  for insert with check (user_id = auth.uid());
+-- Profiles policies moved to 20250820200000_create_profiles_table.sql
 
 -- Organizations: Simplified to avoid recursion
 create policy "Users can view all organizations" on public.organizations

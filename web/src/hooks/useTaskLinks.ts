@@ -39,7 +39,8 @@ export const useTaskLinks = (taskId: string) => {
     link_type?: 'url' | 'file' | 'storage'
   }) => {
     try {
-      const { data: user } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('User not authenticated')
       
       const { data, error } = await supabase
         .from('task_links')
@@ -49,7 +50,7 @@ export const useTaskLinks = (taskId: string) => {
           url: linkData.url,
           description: linkData.description,
           link_type: linkData.link_type || 'url',
-          created_by: user.user?.id
+          created_by: session.user.id
         }])
         .select()
         .single()
@@ -69,13 +70,14 @@ export const useTaskLinks = (taskId: string) => {
   // Update link
   const updateLink = async (linkId: string, updates: Partial<TaskLink>) => {
     try {
-      const { data: user } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('User not authenticated')
       
       const { data, error } = await supabase
         .from('task_links')
         .update({
           ...updates,
-          updated_by: user.user?.id,
+          updated_by: session.user.id,
           updated_at: new Date().toISOString()
         })
         .eq('id', linkId)

@@ -4,15 +4,15 @@ import { supabase } from '../supabaseClient'
 export interface Organization {
   id: string
   name: string
-  domain?: string
-  settings?: Record<string, any>
   created_at: string
+  created_by?: string
   updated_at?: string
+  updated_by?: string
 }
 
 export interface OrganizationMembership {
   id: string
-  organization_id: string
+  org_id: string
   user_id: string
   role: 'admin' | 'member'
   created_at: string
@@ -25,12 +25,12 @@ export function useOrganizations() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // ユーザーが参加している組織一覧を取得
+  // ユーザーが参加する組織を取得
   const fetchUserOrganizations = async () => {
     try {
       setLoading(true)
-      const { data: user } = await supabase.auth.getUser()
-      if (!user.user) throw new Error('User not authenticated')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('User not authenticated')
 
       // ユーザーのメンバーシップと組織情報を同時取得
       const { data, error } = await supabase
@@ -39,7 +39,7 @@ export function useOrganizations() {
           *,
           organization:organizations(*)
         `)
-        .eq('user_id', user.user.id)
+        .eq('user_id', session.user.id)
 
       if (error) throw error
 
@@ -55,18 +55,17 @@ export function useOrganizations() {
   }
 
   // 新しい組織を作成
-  const createOrganization = async (name: string, domain?: string): Promise<string | null> => {
+  const createOrganization = async (name: string): Promise<string | null> => {
     try {
-      const { data: user } = await supabase.auth.getUser()
-      if (!user.user) throw new Error('User not authenticated')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('User not authenticated')
 
       // 1. 組織を作成
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .insert({
           name,
-          domain,
-          settings: {}
+          created_by: session.user.id
         })
         .select()
         .single()
@@ -77,8 +76,8 @@ export function useOrganizations() {
       const { error: membershipError } = await supabase
         .from('organization_memberships')
         .insert({
-          organization_id: orgData.id,
-          user_id: user.user.id,
+          org_id: orgData.id,
+          user_id: session.user.id,
           role: 'admin'
         })
 
@@ -139,7 +138,7 @@ export function useOrganizations() {
   // ユーザーが組織の管理者かチェック
   const isOrgAdmin = (orgId: string): boolean => {
     return userMemberships.some(
-      membership => membership.organization_id === orgId && membership.role === 'admin'
+      membership => membership.org_id === orgId && membership.role === 'admin'
     )
   }
 

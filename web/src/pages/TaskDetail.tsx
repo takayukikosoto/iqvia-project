@@ -5,7 +5,6 @@ import { useTaskLinks } from '../hooks/useTaskLinks'
 import { useFiles } from '../hooks/useFiles'
 import FileUpload from '../components/FileUpload'
 import FileList from '../components/FileList'
-import Chat from '../components/Chat'
 import { supabase } from '../supabaseClient'
 
 interface TaskDetailProps {
@@ -25,7 +24,6 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<Task['priority']>('low')
   const [dueAt, setDueAt] = useState('')
-  const [showChat, setShowChat] = useState(false)
   const [showFiles, setShowFiles] = useState(false)
   
   // Link form state
@@ -189,16 +187,6 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
                     {files.length}
                   </span>
                 )}
-              </button>
-              <button
-                onClick={() => setShowChat(!showChat)}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  showChat 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                {showChat ? 'チャット非表示' : 'チャット表示'}
               </button>
             </div>
           </div>
@@ -448,15 +436,6 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
               </div>
             )}
 
-            {/* Chat */}
-            {showChat && task.project_id && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">チャット</h3>
-                <div className="h-96">
-                  <Chat projectId={task.project_id} />
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

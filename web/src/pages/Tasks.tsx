@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import TaskBoard from '../components/TaskBoard'
-import Chat from '../components/Chat'
+import DraggableChat from '../components/DraggableChat'
 import FileUpload from '../components/FileUpload'
 import FileList from '../components/FileList'
 import MentionNotifications from '../components/MentionNotifications'
@@ -25,7 +25,7 @@ interface Task {
 interface Project {
   id: string
   name: string
-  org_id: string
+  organization_id: string
   created_at: string
 }
 
@@ -43,7 +43,7 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCustomStatusManager, setShowCustomStatusManager] = useState(false)
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
-  const [showChat, setShowChat] = useState(true)
+  const [showChat, setShowChat] = useState(false)
   
   // File management hook
   const { files, loading: filesLoading, uploadFile, uploadNewVersion, downloadFile, deleteFile, getFileVersions } = useFiles(selectedProject)
@@ -51,7 +51,7 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
   const loadProjects = async () => {
     const { data, error } = await supabase
       .from('projects')
-      .select('id, name, created_at')
+      .select('id, name, organization_id, created_at')
     if (error) {
       console.error('Projects load error:', error)
     } else {
@@ -175,7 +175,7 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
     <div 
       style={{ 
         display: 'flex', 
-        gap: showChat ? 24 : 0, 
+        gap: 0, 
         height: 'calc(100vh - 140px)',
         transition: 'gap 0.3s ease-in-out'
       }}
@@ -210,7 +210,7 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
             <button
               onClick={() => setShowChat(!showChat)}
               className={`px-4 py-3 font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center space-x-2 ${
-                showChat 
+                showChat
                   ? 'bg-blue-600 hover:bg-blue-700 text-white' 
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
               }`}
@@ -314,38 +314,12 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
         {selectedProject && <MentionNotifications projectId={selectedProject} />}
       </div>
       
-      {/* Right Panel - Chat */}
+      {/* Draggable Chat */}
       {showChat && (
-        <div 
-          style={{ 
-            width: 350, 
-            minWidth: 350, 
-            height: '100%',
-            transform: 'translateX(0)',
-            transition: 'all 0.3s ease-in-out'
-          }}
-        >
-          <Chat projectId={selectedProject} />
-        </div>
-      )}
-      
-      {/* Chat Toggle Button (when hidden) */}
-      {!showChat && (
-        <div 
-          className="fixed right-6 top-1/2 transform -translate-y-1/2 z-10"
-          style={{ transition: 'all 0.3s ease-in-out' }}
-        >
-          <button
-            onClick={() => setShowChat(true)}
-            className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2"
-            title="チャットを表示"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <span className="text-sm font-medium">チャット</span>
-          </button>
-        </div>
+        <DraggableChat 
+          projectId={selectedProject} 
+          onClose={() => setShowChat(false)}
+        />
       )}
 
       {/* Create Task Modal */}

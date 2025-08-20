@@ -18,7 +18,7 @@ const AdminDashboard: React.FC = () => {
     e.preventDefault()
     if (!newOrgName.trim()) return
 
-    const orgId = await createOrganization(newOrgName, newOrgDomain || undefined)
+    const orgId = await createOrganization(newOrgName)
     if (orgId) {
       setNewOrgName('')
       setNewOrgDomain('')
@@ -124,9 +124,6 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-semibold text-gray-900">{org.name}</h3>
-                        {org.domain && (
-                          <p className="text-sm text-gray-500">@{org.domain}</p>
-                        )}
                         <p className="text-xs text-gray-400 mt-1">
                           作成日: {new Date(org.created_at).toLocaleDateString('ja-JP')}
                         </p>

@@ -10,6 +10,7 @@ export interface UserProfile {
   created_at: string
   updated_at: string
   email?: string
+  is_admin?: boolean
 }
 
 export function useUsers() {
@@ -28,22 +29,33 @@ export function useUsers() {
       setLoading(true)
       setError(null)
 
-      console.log('Fetching users from profiles table...')
+      console.log('Fetching users with hybrid admin system...')
       
-      // プロファイル情報を取得（メール情報は現在のユーザーのものを使用）
+      // プロファイル情報を取得（roleカラムは削除済み）
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('user_id, display_name, company, role, created_at, updated_at')
+        .select('user_id, display_name, company, created_at, updated_at')
         .order('created_at', { ascending: false })
 
       console.log('Profiles query result:', { profiles, profileError })
 
       if (profileError) throw profileError
 
-      // 現在のユーザーのメールアドレスを各プロファイルに設定
-      // 注意: 本来は各ユーザーのメールを取得すべきですが、権限の問題でサーバーサイドAPIが必要
+      // 管理者情報をRPC経由で取得
+      const { data: admins, error: adminsError } = await supabase
+        .rpc('get_current_admins')
+
+      if (adminsError) {
+        console.warn('Could not fetch admin data:', adminsError)
+      }
+
+      const adminUserIds = new Set(admins?.map((a: any) => a.user_id) || [])
+
+      // ユーザー情報にロール情報を追加
       const usersWithEmails = (profiles || []).map((profile) => ({
         ...profile,
+        role: adminUserIds.has(profile.user_id) ? 'admin' : 'viewer',
+        is_admin: adminUserIds.has(profile.user_id),
         email: profile.user_id === user.id ? user.email || 'メール不明' : `user-${profile.user_id.slice(0, 8)}@example.com`
       }))
 
@@ -59,18 +71,25 @@ export function useUsers() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole, updated_at: new Date().toISOString() })
-        .eq('user_id', userId)
-
-      if (error) throw error
+      if (newRole === 'admin') {
+        // 管理者権限付与
+        const { error } = await supabase.rpc('grant_admin_privileges', {
+          target_user_id: userId
+        })
+        if (error) throw error
+      } else {
+        // 管理者権限剥奪
+        const { error } = await supabase.rpc('revoke_admin_privileges', {
+          target_user_id: userId
+        })
+        if (error) throw error
+      }
 
       // ローカル状態を更新
       setUsers(prev => 
         prev.map(user => 
           user.user_id === userId 
-            ? { ...user, role: newRole, updated_at: new Date().toISOString() }
+            ? { ...user, role: newRole, is_admin: newRole === 'admin', updated_at: new Date().toISOString() }
             : user
         )
       )

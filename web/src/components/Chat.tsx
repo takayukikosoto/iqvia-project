@@ -9,8 +9,8 @@ interface ChatMessage {
   content: string
   created_at: string
   user?: {
-    email: string
-    name?: string
+    display_name: string
+    email?: string
   }
 }
 
@@ -39,8 +39,8 @@ export default function Chat({ projectId }: ChatProps) {
     setLoading(true)
     
     const { data, error } = await supabase
-      .from('chat_messages')
-      .select('id, project_id, user_id, content, created_at')
+      .from('chat_messages_with_profiles')
+      .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true })
       .limit(50)
@@ -52,13 +52,12 @@ export default function Chat({ projectId }: ChatProps) {
       const messagesWithUsers = data.map(msg => ({
         ...msg,
         user: {
-          email: `User ${msg.user_id.slice(0, 8)}`,
-          name: `User ${msg.user_id.slice(0, 8)}`
+          display_name: msg.display_name
         }
       }))
-      
       setMessages(messagesWithUsers)
     }
+    
     setLoading(false)
   }
 
@@ -159,7 +158,7 @@ export default function Chat({ projectId }: ChatProps) {
                 >
                   {!isCurrentUser && (
                     <div className="text-xs opacity-70 mb-1">
-                      {message.user?.name}
+                      {message.user?.display_name}
                     </div>
                   )}
                   <div>{message.content}</div>

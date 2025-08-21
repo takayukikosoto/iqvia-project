@@ -53,13 +53,19 @@ export const quickTestLogin = async () => {
   }
 }
 
-// Create user with specified role
+// Create user with admin privileges using hybrid system
 export const createUserWithRole = async (email: string, password: string, role: string = 'admin') => {
   try {
-    // シンプルにユーザー作成
+    // ユーザー作成
     const { data, error } = await supabase.auth.signUp({
       email,
-      password
+      password,
+      options: {
+        data: {
+          display_name: email.split('@')[0],
+          company: 'Test Company'
+        }
+      }
     })
 
     if (error) {
@@ -67,21 +73,22 @@ export const createUserWithRole = async (email: string, password: string, role: 
       return { success: false, error: error.message }
     }
 
-    if (data.user) {
-      // プロファイルを直接作成（トリガーが失敗する場合のフォールバック）
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: data.user.id,
-          display_name: email.split('@')[0],
-          company: 'Test Company',
-          role: role
-        })
+    if (data.user && role === 'admin') {
+      // ハイブリッドシステム：admin権限の場合はadmin.adminsテーブルに登録
+      const { error: adminError } = await supabase.rpc('grant_admin_privileges', {
+        target_user_id: data.user.id
+      })
 
-      if (profileError) {
-        console.log('Profile creation handled by trigger or already exists')
+      if (adminError) {
+        console.error('Admin privileges error:', adminError)
+        return { success: false, error: adminError.message }
       }
 
+      console.log(`${role} user created successfully:`, data.user.id)
+      return { success: true, user: data.user, role }
+    }
+
+    if (data.user) {
       console.log(`${role} user created successfully:`, data.user.id)
       return { success: true, user: data.user, role }
     }

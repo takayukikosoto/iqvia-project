@@ -37,23 +37,18 @@ export function useUserRoles() {
     try {
       setLoading(true)
 
-      // profilesテーブルからロールを取得
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single()
+      // ハイブリッド方式: app_metadata.is_adminから高速取得
+      const { data: authUser, error: authError } = await supabase.auth.getUser()
+      
+      if (authError) throw authError
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError
-      }
+      // app_metadata.is_adminで管理者判定
+      const isAdmin = authUser.user?.app_metadata?.is_admin === true
+      const baseRole = isAdmin ? 'admin' : 'viewer'
 
-      const baseRole = profile?.role || 'viewer'
-
-      // シンプルなロール判定
-      const isAdmin = baseRole === 'admin'
-      const isProjectManager = baseRole === 'project_manager'
-      const isOrgManager = baseRole === 'org_manager'
+      // シンプルなロール判定（管理者は全権限保有）
+      const isProjectManager = isAdmin
+      const isOrgManager = isAdmin
 
       setUserRoles({
         organizationRoles: [],

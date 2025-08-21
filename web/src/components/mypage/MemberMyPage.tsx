@@ -2,12 +2,17 @@ import React, { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useUserRoles } from '../../hooks/useUserRoles'
 import { useProjects } from '../../hooks/useProjects'
+import { useProfile } from '../../hooks/useProfile'
 
 export default function MemberMyPage() {
   const { user } = useAuth()
   const { userRoles } = useUserRoles()
   const { projects, loading: projectLoading } = useProjects()
+  const { profile, loading: profileLoading, updateProfile } = useProfile()
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'activity' | 'profile'>('overview')
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [displayName, setDisplayName] = useState('')
+  const [company, setCompany] = useState('')
 
   const renderOverview = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -192,99 +197,185 @@ export default function MemberMyPage() {
     </div>
   )
 
-  const renderProfile = () => (
-    <div className="bg-white rounded-lg shadow">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">プロフィール設定</h3>
-      </div>
-      <div className="p-6 space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            メールアドレス
-          </label>
-          <input
-            type="email"
-            value={user?.email || ''}
-            disabled
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            現在のロール
-          </label>
-          <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-            <span className="px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">
-              {userRoles.highestOrgRole === 'contributor' ? 'Contributor' : 
-               userRoles.highestOrgRole === 'viewer' ? 'Viewer' : 'Member'}
-            </span>
-          </div>
-        </div>
+  const renderProfile = () => {
+    // プロフィール編集開始時の初期化
+    const handleEditStart = () => {
+      if (profile) {
+        setDisplayName(profile.display_name)
+        setCompany(profile.company)
+        setIsEditingProfile(true)
+      }
+    }
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            利用可能な機能
-          </label>
-          <div className="space-y-2">
-            <div className="flex items-center text-sm text-gray-600">
-              <svg className="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              タスク閲覧・更新
+    // プロフィール保存
+    const handleSaveProfile = async () => {
+      const result = await updateProfile({
+        display_name: displayName.trim() || 'ユーザー',
+        company: company.trim() || '会社名未設定'
+      })
+
+      if (result.success) {
+        setIsEditingProfile(false)
+      } else {
+        alert('プロフィール更新に失敗しました: ' + result.error)
+      }
+    }
+
+    return (
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-900">プロフィール設定</h3>
+          {!isEditingProfile ? (
+            <button
+              onClick={handleEditStart}
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              編集
+            </button>
+          ) : (
+            <div className="space-x-2">
+              <button
+                onClick={handleSaveProfile}
+                className="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              >
+                保存
+              </button>
+              <button
+                onClick={() => setIsEditingProfile(false)}
+                className="px-3 py-1 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              >
+                キャンセル
+              </button>
             </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <svg className="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              ファイルアップロード・ダウンロード
+          )}
+        </div>
+        <div className="p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              表示名
+            </label>
+            {isEditingProfile ? (
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="チャットや履歴で表示される名前"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            ) : (
+              <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                {profile?.display_name || '未設定'}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              会社名
+            </label>
+            {isEditingProfile ? (
+              <input
+                type="text"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="所属する会社・組織名"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            ) : (
+              <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                {profile?.company || '未設定'}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              メールアドレス
+            </label>
+            <input
+              type="email"
+              value={user?.email || ''}
+              disabled
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              現在のロール
+            </label>
+            <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+              <span className="px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">
+                {userRoles.highestOrgRole === 'contributor' ? 'Contributor' : 
+                 userRoles.highestOrgRole === 'viewer' ? 'Viewer' : 'Member'}
+              </span>
             </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <svg className="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              チャット参加
-            </div>
-            {userRoles.highestOrgRole === 'viewer' && (
-              <div className="flex items-center text-sm text-gray-400">
-                <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              利用可能な機能
+            </label>
+            <div className="space-y-2">
+              <div className="flex items-center text-sm text-gray-600">
+                <svg className="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
-                編集権限なし（閲覧のみ）
+                タスク閲覧・更新
               </div>
-            )}
+              <div className="flex items-center text-sm text-gray-600">
+                <svg className="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                ファイルアップロード・ダウンロード
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <svg className="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                チャット参加
+              </div>
+              {userRoles.highestOrgRole === 'viewer' && (
+                <div className="flex items-center text-sm text-gray-400">
+                  <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  編集権限なし（閲覧のみ）
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            参加プロジェクト・ロール
-          </label>
-          <div className="space-y-2">
-            {userRoles.projectRoles.map((role, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-md">
-                <span className="text-sm text-gray-900">{role.name}</span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  role.role === 'project_manager' 
-                    ? 'bg-blue-100 text-blue-800'
-                    : role.role === 'contributor'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {role.role}
-                </span>
-              </div>
-            ))}
-            {userRoles.projectRoles.length === 0 && (
-              <p className="text-sm text-gray-500 text-center py-4">
-                参加中のプロジェクトがありません
-              </p>
-            )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              参加プロジェクト・ロール
+            </label>
+            <div className="space-y-2">
+              {userRoles.projectRoles.map((role, index) => (
+                <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-md">
+                  <span className="text-sm text-gray-900">{role.name}</span>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    role.role === 'project_manager' 
+                      ? 'bg-blue-100 text-blue-800'
+                      : role.role === 'contributor'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {role.role}
+                  </span>
+                </div>
+              ))}
+              {userRoles.projectRoles.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  参加中のプロジェクトがありません
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

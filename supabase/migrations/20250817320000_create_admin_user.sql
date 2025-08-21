@@ -21,7 +21,7 @@ INSERT INTO auth.users (
   now(),
   now(),
   '{"provider": "email", "providers": ["email"]}',
-  '{}',
+  '{"role": "admin", "display_name": "Administrator", "company": "IQVIA"}',
   false,
   'authenticated'
 );

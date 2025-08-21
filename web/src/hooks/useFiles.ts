@@ -47,25 +47,62 @@ export function useFiles(projectId: string, taskId?: string) {
 
   // ファイル一覧取得
   const fetchFiles = async () => {
-    if (!projectId) return
-    
+    // projectIdが空の場合は何もしない
+    if (!projectId || projectId.trim() === '') {
+      setLoading(false)
+      setFiles([])
+      return
+    }
+
     setLoading(true)
     try {
-      let query = supabase
-        .from('files')
-        .select('*')
-        .eq('project_id', projectId)
-
-      // タスクIDが指定されている場合、そのタスクのファイルのみ取得
       if (taskId) {
-        query = query.like('storage_path', `${projectId}/task_${taskId}/%`)
+        // タスクIDが指定されている場合はストレージから取得
+        const { data: taskData } = await supabase
+          .from('tasks')
+          .select('storage_folder')
+          .eq('id', taskId)
+          .single()
+
+        if (!taskData?.storage_folder) {
+          setFiles([])
+          setLoading(false)
+          return
+        }
+
+        const { data: storageFiles, error: storageError } = await supabase
+          .storage
+          .from('task-files')
+          .list(taskData.storage_folder, {
+            limit: 1000,
+            offset: 0
+          })
+
+        if (storageError) throw storageError
+
+        // ストレージファイル情報を標準形式に変換
+        const fileList = (storageFiles || []).map(file => ({
+          id: file.name,
+          project_id: projectId,
+          name: file.name,
+          storage_path: `${taskData.storage_folder}/${file.name}`,
+          created_at: file.created_at || new Date().toISOString(),
+          total_size_bytes: file.metadata?.size || 0,
+          total_versions: 1
+        }))
+
+        setFiles(fileList)
+      } else {
+        // プロジェクトベースの従来クエリ（task_idを使わない）
+        const { data, error } = await supabase
+          .from('files')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+        setFiles(data || [])
       }
-
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setFiles(data || [])
     } catch (err) {
       console.error('Error fetching files:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch files')

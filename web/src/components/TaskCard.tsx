@@ -36,10 +36,11 @@ const statusOptions: { value: Task['status']; label: string }[] = [
 export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelect }: TaskCardProps) {
   const { priorityOptions, changePriority, getPriorityColor, getPriorityLabel, loading, getPriorityHistory } = usePriority()
   const { links, loading: linksLoading, addLink, updateLink, deleteLink } = useTaskLinks(task.id)
-  const { files } = useFiles(task.project_id, task.id)
+  const { files, uploadFile, deleteFile, loading: filesLoading } = useFiles(task.project_id, task.id)
   
   const [isEditing, setIsEditing] = useState(false)
   const [showLinks, setShowLinks] = useState(false)
+  const [showFiles, setShowFiles] = useState(false)
   const [isAddingLink, setIsAddingLink] = useState(false)
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description || '')
@@ -341,6 +342,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
           <button
             onClick={(e) => {
               e.stopPropagation()
+              setShowFiles(!showFiles)
             }}
             style={{
               padding: 2,
@@ -801,6 +803,139 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
                     title="削除"
                   >
                     ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ファイル表示セクション */}
+      {showFiles && (
+        <div style={{
+          marginTop: 8,
+          padding: 8,
+          backgroundColor: '#f8f9fa',
+          borderRadius: 4,
+          border: '1px solid #e9ecef'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8
+          }}>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#666'
+            }}>
+              ファイル ({files.length})
+            </div>
+            <label
+              style={{
+                padding: '2px 6px',
+                fontSize: 10,
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: 3,
+                cursor: 'pointer'
+              }}
+            >
+              + アップロード
+              <input
+                type="file"
+                multiple
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  if (e.target.files) {
+                    for (const file of Array.from(e.target.files)) {
+                      try {
+                        await uploadFile(file, task.id)
+                      } catch (error) {
+                        console.error('ファイルアップロードエラー:', error)
+                      }
+                    }
+                    // ファイル選択をリセット
+                    e.target.value = ''
+                  }
+                }}
+              />
+            </label>
+          </div>
+
+          {/* ファイル一覧 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {filesLoading ? (
+              <div style={{ fontSize: 10, color: '#666', textAlign: 'center' }}>
+                読み込み中...
+              </div>
+            ) : files.length === 0 ? (
+              <div style={{ fontSize: 10, color: '#666', textAlign: 'center' }}>
+                ファイルがありません
+              </div>
+            ) : (
+              files.map((file) => (
+                <div
+                  key={file.id}
+                  style={{
+                    padding: 6,
+                    backgroundColor: 'white',
+                    borderRadius: 3,
+                    border: '1px solid #ddd',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#007bff',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={file.name}
+                    >
+                      📄 {file.name}
+                    </div>
+                    <div style={{
+                      fontSize: 9,
+                      color: '#666',
+                      marginTop: 2
+                    }}>
+                      {new Date(file.created_at).toLocaleDateString('ja-JP')}
+                      {file.total_size_bytes && ` • ${Math.round(file.total_size_bytes / 1024)}KB`}
+                    </div>
+                  </div>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      if (confirm('このファイルを削除しますか？')) {
+                        try {
+                          await deleteFile(file.id)
+                        } catch (error) {
+                          console.error('ファイル削除エラー:', error)
+                        }
+                      }
+                    }}
+                    style={{
+                      padding: 2,
+                      fontSize: 10,
+                      backgroundColor: 'transparent',
+                      color: '#dc3545',
+                      border: 'none',
+                      cursor: 'pointer',
+                      marginLeft: 4
+                    }}
+                    title="削除"
+                  >
+                    🗑️
                   </button>
                 </div>
               ))

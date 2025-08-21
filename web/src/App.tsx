@@ -5,8 +5,10 @@ import Tasks from './pages/Tasks'
 import AdminDashboard from './pages/AdminDashboard'
 import TaskDetail from './pages/TaskDetail'
 import MyPage from './pages/MyPage'
+import Files from './pages/Files'
+import Calendar from './pages/Calendar'
 
-type CurrentPage = 'tasks' | 'admin' | 'mypage' | 'task-detail'
+type CurrentPage = 'tasks' | 'admin' | 'mypage' | 'files' | 'calendar' | 'task-detail'
 
 export default function App() {
   const { user, loading, signOut } = useAuth()
@@ -41,6 +43,10 @@ export default function App() {
         return <AdminDashboard />
       case 'mypage':
         return <MyPage />
+      case 'files':
+        return <Files />
+      case 'calendar':
+        return <Calendar />
       case 'task-detail':
         return selectedTaskId ? (
           <TaskDetail taskId={selectedTaskId} onBack={handleBackToTasks} />
@@ -80,6 +86,26 @@ export default function App() {
                   }`}
                 >
                   マイページ
+                </button>
+                <button
+                  onClick={() => setCurrentPage('files')}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentPage === 'files' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  ファイル管理
+                </button>
+                <button
+                  onClick={() => setCurrentPage('calendar')}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentPage === 'calendar' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  カレンダー
                 </button>
                 <button
                   onClick={() => setCurrentPage('admin')}

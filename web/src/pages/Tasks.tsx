@@ -14,7 +14,7 @@ interface Task {
   id: string
   title: string
   description?: string
-  status: 'todo' | 'review' | 'done' | 'resolved'
+  status: 'todo' | 'review' | 'done' | 'resolved' | 'completed'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   project_id: string
   assigned_to?: string
@@ -70,6 +70,7 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
       .from('tasks')
       .select('id, title, description, status, priority, due_at, project_id, created_by, created_at, updated_at')
       .eq('project_id', projectId)
+      .neq('status', 'completed') // 完了したタスクを除外
       .order('created_at', { ascending: false })
     
     if (error) {

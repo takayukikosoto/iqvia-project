@@ -2,7 +2,7 @@ export type Task = {
   id: string
   title: string
   description?: string
-  status: 'todo' | 'review' | 'done' | 'resolved'
+  status: 'todo' | 'review' | 'done' | 'resolved' | 'completed'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   due_at?: string
   project_id: string

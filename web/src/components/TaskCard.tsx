@@ -31,7 +31,7 @@ const priorityLabels: Record<TaskPriority, string> = {
 const statusOptions: { value: Task['status']; label: string; color: string }[] = [
   { value: 'todo', label: '未着手', color: '#6c757d' },
   { value: 'review', label: 'レビュー中', color: '#ffc107' },
-  { value: 'done', label: '完了', color: '#28a745' },
+  { value: 'done', label: '作業完了', color: '#28a745' },
   { value: 'resolved', label: '対応済み', color: '#17a2b8' }
 ]
 
@@ -431,6 +431,27 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
             title="詳細"
           >
             📋
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onTaskUpdate(task.id, { status: 'completed' })
+              // 完了後に完了済みページへ遷移
+              setTimeout(() => {
+                window.location.href = '/completed'
+              }, 500)
+            }}
+            style={{
+              padding: 2,
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: '#28a745'
+            }}
+            title="完了"
+          >
+            ✅
           </button>
           <button
             onClick={(e) => {

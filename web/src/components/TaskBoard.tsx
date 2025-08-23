@@ -15,7 +15,7 @@ interface TaskBoardProps {
 const statusLabels: Record<TaskStatus, string> = {
   todo: '未着手',
   review: 'レビュー中',
-  done: '完了',
+  done: '作業完了',
   resolved: '対応済み'
 }
 

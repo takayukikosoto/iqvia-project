@@ -7,8 +7,9 @@ import TaskDetail from './pages/TaskDetail'
 import MyPage from './pages/MyPage'
 import Files from './pages/Files'
 import Calendar from './pages/Calendar'
+import CompletedTasks from './pages/CompletedTasks'
 
-type CurrentPage = 'tasks' | 'admin' | 'mypage' | 'files' | 'calendar' | 'task-detail'
+type CurrentPage = 'tasks' | 'admin' | 'mypage' | 'files' | 'calendar' | 'task-detail' | 'completed'
 
 export default function App() {
   const { user, loading, signOut } = useAuth()
@@ -47,6 +48,8 @@ export default function App() {
         return <Files />
       case 'calendar':
         return <Calendar />
+      case 'completed':
+        return <CompletedTasks />
       case 'task-detail':
         return selectedTaskId ? (
           <TaskDetail taskId={selectedTaskId} onBack={handleBackToTasks} />
@@ -106,6 +109,16 @@ export default function App() {
                   }`}
                 >
                   カレンダー
+                </button>
+                <button
+                  onClick={() => setCurrentPage('completed')}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentPage === 'completed' 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  完了済み
                 </button>
                 <button
                   onClick={() => setCurrentPage('admin')}

@@ -4,12 +4,14 @@ import { useFiles } from '../hooks/useFiles'
 import { Task, TaskPriority, CustomStatus, User } from '../types'
 import { supabase } from '../supabaseClient'
 import { useTaskLinks } from '../hooks/useTaskLinks'
+import { RecentCommentInfo } from '../hooks/useRecentComments'
 
 interface TaskCardProps {
   task: Task
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void
   onTaskDelete: (taskId: string) => void
   onTaskSelect?: (taskId: string) => void
+  commentInfo?: RecentCommentInfo
 }
 
 const priorityColors = {
@@ -26,14 +28,14 @@ const priorityLabels: Record<TaskPriority, string> = {
   urgent: '緊急'
 }
 
-const statusOptions: { value: Task['status']; label: string }[] = [
-  { value: 'todo', label: '未着手' },
-  { value: 'review', label: 'レビュー中' },
-  { value: 'done', label: '完了' },
-  { value: 'resolved', label: '対応済み' }
+const statusOptions: { value: Task['status']; label: string; color: string }[] = [
+  { value: 'todo', label: '未着手', color: '#6c757d' },
+  { value: 'review', label: 'レビュー中', color: '#ffc107' },
+  { value: 'done', label: '完了', color: '#28a745' },
+  { value: 'resolved', label: '対応済み', color: '#17a2b8' }
 ]
 
-export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelect }: TaskCardProps) {
+export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelect, commentInfo }: TaskCardProps) {
   const { priorityOptions, changePriority, getPriorityColor, getPriorityLabel, loading, getPriorityHistory } = usePriority()
   const { links, loading: linksLoading, addLink, updateLink, deleteLink } = useTaskLinks(task.id)
   const { files, uploadFile, deleteFile, loading: filesLoading } = useFiles(task.project_id, task.id)
@@ -41,6 +43,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
   const [isEditing, setIsEditing] = useState(false)
   const [showLinks, setShowLinks] = useState(false)
   const [showFiles, setShowFiles] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
   const [isAddingLink, setIsAddingLink] = useState(false)
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description || '')
@@ -283,38 +286,75 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
   }
 
   return (
-    <div style={{
-      border: `2px solid ${getBorderColor()}`,
-      backgroundColor: getBackgroundColor(),
-      borderRadius: 8,
-      padding: 12,
-      margin: '4px 0',
-      transition: 'all 0.2s ease',
-      position: 'relative'
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-2px)'
-      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'translateY(0)'
-      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-    }}>
+    <div 
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', task.id)
+        e.dataTransfer.effectAllowed = 'move'
+        e.currentTarget.style.opacity = '0.5'
+      }}
+      onDragEnd={(e) => {
+        e.currentTarget.style.opacity = '1'
+      }}
+      style={{
+        border: `2px solid ${getBorderColor()}`,
+        backgroundColor: getBackgroundColor(),
+        borderRadius: 6,
+        padding: 8,
+        margin: '2px 0',
+        transition: 'all 0.2s ease',
+        position: 'relative',
+        cursor: 'grab'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)'
+        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 8
+        marginBottom: 4
       }}>
-        <h4 style={{
-          margin: 0,
-          fontSize: 18,
-          fontWeight: 600,
-          lineHeight: 1.3,
-          flex: 1
-        }}>
-          {task.title}
-        </h4>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <h4 style={{
+              margin: 0,
+              fontSize: 16,
+              fontWeight: 600,
+              lineHeight: 1.2
+            }}>
+              {task.title}
+            </h4>
+            {commentInfo?.hasRecentComments && (
+              <span style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                fontSize: 9,
+                fontWeight: 'bold',
+                padding: '2px 6px',
+                borderRadius: 8,
+                textTransform: 'uppercase'
+              }}>
+                New
+              </span>
+            )}
+          </div>
+          {task.due_at && (
+            <div style={{
+              fontSize: 10,
+              color: new Date(task.due_at) < new Date() ? '#dc3545' : '#666',
+              fontWeight: new Date(task.due_at) < new Date() ? 600 : 400,
+              marginTop: 2
+            }}>
+              📅 {new Date(task.due_at).toLocaleDateString('ja-JP')}
+            </div>
+          )}
+        </div>
         
         <div style={{
           display: 'flex',
@@ -412,185 +452,133 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
         </div>
       </div>
       
-      {task.description && (
-        <p style={{
-          margin: '0 0 12px 0',
-          fontSize: 12,
-          color: '#666',
-          lineHeight: 1.4
-        }}>
-          {task.description.length > 100 
-            ? `${task.description.substring(0, 100)}...` 
-            : task.description
-          }
-        </p>
-      )}
-      
-      {/* ステータス・優先度 - コンパクト2列表示 */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 8,
-        marginBottom: 12
-      }}>
-        {/* ステータス */}
-        <div style={{
-          padding: 8,
-          backgroundColor: '#f8f9fa',
-          borderRadius: 6,
-          border: '1px solid #e9ecef'
-        }}>
-          <div style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: '#666',
-            marginBottom: 4,
-            textAlign: 'center'
-          }}>ステータス</div>
-          <select
-            value={task.status}
-            onChange={(e) => {
+      {/* 詳細情報 - 一括折りたたみ */}
+      {(task.description || latestPriorityChange) && (
+        <div style={{ marginBottom: 4 }}>
+          <button
+            onClick={(e) => {
               e.stopPropagation()
-              onTaskUpdate(task.id, { status: e.target.value as Task['status'] })
+              setShowDetails(!showDetails)
             }}
             style={{
-              fontSize: 11,
-              fontWeight: 600,
-              border: '1px solid #ccc',
-              borderRadius: 4,
-              padding: '4px 6px',
-              width: '100%',
-              backgroundColor: 'white'
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 9,
+              color: '#666',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              padding: 0
             }}
           >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 優先度 - コンパクト */}
-        <div style={{
-          padding: 8,
-          backgroundColor: '#f8f9fa',
-          borderRadius: 6,
-          border: '1px solid #e9ecef'
-        }}>
-          <div style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: '#666',
-            marginBottom: 4,
-            textAlign: 'center'
-          }}>優先度</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-            {(loading || !priorityOptions || priorityOptions.length === 0) ? (
-              // フォールバック用のボタン
-              <>
-                <button
-                  onClick={(e) => handlePriorityChange(e, 'low')}
-                  style={{
-                    padding: '4px 2px',
-                    fontSize: 9,
-                    borderRadius: 3,
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    backgroundColor: task.priority === 'low' ? '#28a745' : '#e9ecef',
-                    color: task.priority === 'low' ? 'white' : '#666'
-                  }}
-                >
-                  低
-                </button>
-                <button
-                  onClick={(e) => handlePriorityChange(e, 'medium')}
-                  style={{
-                    padding: '4px 2px',
-                    fontSize: 9,
-                    borderRadius: 3,
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    backgroundColor: task.priority === 'medium' ? '#007bff' : '#e9ecef',
-                    color: task.priority === 'medium' ? 'white' : '#666'
-                  }}
-                >
-                  中
-                </button>
-                <button
-                  onClick={(e) => handlePriorityChange(e, 'high')}
-                  style={{
-                    padding: '4px 2px',
-                    fontSize: 9,
-                    borderRadius: 3,
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    backgroundColor: task.priority === 'high' ? '#ffc107' : '#e9ecef',
-                    color: task.priority === 'high' ? 'white' : '#666'
-                  }}
-                >
-                  高
-                </button>
-                <button
-                  onClick={(e) => handlePriorityChange(e, 'urgent')}
-                  style={{
-                    padding: '4px 2px',
-                    fontSize: 9,
-                    borderRadius: 3,
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    backgroundColor: task.priority === 'urgent' ? '#dc3545' : '#e9ecef',
-                    color: task.priority === 'urgent' ? 'white' : '#666'
-                  }}
-                >
-                  緊急
-                </button>
-              </>
-            ) : (
-              // データベースから取得したボタン
-              priorityOptions.slice(0, 4).map((option) => (
-                <button
-                  key={option.name}
-                  onClick={(e) => handlePriorityChange(e, option.name)}
-                  style={{
-                    padding: '4px 2px',
-                    fontSize: 9,
-                    borderRadius: 3,
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    backgroundColor: task.priority === option.name ? option.color : '#e9ecef',
-                    color: task.priority === option.name ? 'white' : '#666'
-                  }}
-                >
-                  {option.label}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 最新の優先度変更情報 - 必要時のみ表示 */}
-      {latestPriorityChange && (
-        <div style={{
-          marginBottom: 8,
-          fontSize: 9,
-          color: '#666',
-          backgroundColor: '#f8f9fa',
-          padding: 6,
-          borderRadius: 3,
-          border: '1px solid #e9ecef'
-        }}>
-          <div style={{ fontWeight: 600, marginBottom: 2 }}>優先度変更履歴</div>
-          <div>変更者: {latestPriorityChange.changed_by_email || 'システム'}</div>
-          <div>{new Date(latestPriorityChange.changed_at).toLocaleString('ja-JP')}</div>
-          {latestPriorityChange.reason && (
-            <div>理由: {latestPriorityChange.reason}</div>
+            <span style={{
+              transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s'
+            }}>▶</span>
+            詳細情報
+          </button>
+          {showDetails && (
+            <div style={{
+              marginTop: 4,
+              padding: '8px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: 4,
+              border: '1px solid #e9ecef'
+            }}>
+              {/* 説明文 */}
+              {task.description && (
+                <div style={{ marginBottom: 12 }}>
+                  <h5 style={{ margin: '0 0 4px 0', fontSize: 11, fontWeight: 600, color: '#333' }}>説明</h5>
+                  <p style={{
+                    margin: 0,
+                    fontSize: 11,
+                    color: '#666',
+                    lineHeight: 1.3
+                  }}>
+                    {task.description}
+                  </p>
+                </div>
+              )}
+              
+              {/* ステータス・優先度設定 */}
+              <div style={{ marginBottom: 12 }}>
+                <h5 style={{ margin: '0 0 6px 0', fontSize: 11, fontWeight: 600, color: '#333' }}>ステータス・優先度</h5>
+                
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: '#666', marginBottom: 4 }}>ステータス</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {statusOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          if (task.status !== option.value) {
+                            await onTaskUpdate(task.id, { status: option.value })
+                          }
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: task.status === option.value ? option.color : '#fff',
+                          color: task.status === option.value ? '#fff' : '#333',
+                          border: `1px solid ${option.color}`,
+                          borderRadius: 3,
+                          cursor: 'pointer',
+                          fontSize: 10,
+                          fontWeight: task.status === option.value ? 600 : 400
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <div style={{ fontSize: 10, color: '#666', marginBottom: 4 }}>優先度</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {priorityOptions.map((option) => (
+                      <button
+                        key={option.name}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          if (task.priority !== option.name) {
+                            await changePriority(task.id, option.name)
+                            await onTaskUpdate(task.id, { priority: option.name as TaskPriority })
+                          }
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: task.priority === option.name ? option.color : '#fff',
+                          color: task.priority === option.name ? '#fff' : '#333',
+                          border: `1px solid ${option.color}`,
+                          borderRadius: 3,
+                          cursor: 'pointer',
+                          fontSize: 10,
+                          fontWeight: task.priority === option.name ? 600 : 400
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              {/* 優先度変更履歴 */}
+              {latestPriorityChange && (
+                <div>
+                  <h5 style={{ margin: '0 0 4px 0', fontSize: 11, fontWeight: 600, color: '#333' }}>優先度変更履歴</h5>
+                  <div style={{ fontSize: 9, color: '#666' }}>
+                    <div>変更者: {latestPriorityChange.changed_by_email || 'システム'}</div>
+                    <div>{new Date(latestPriorityChange.changed_at).toLocaleString('ja-JP')}</div>
+                    {latestPriorityChange.reason && (
+                      <div>理由: {latestPriorityChange.reason}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -853,7 +841,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
                   if (e.target.files) {
                     for (const file of Array.from(e.target.files)) {
                       try {
-                        await uploadFile(file, task.id)
+                        await uploadFile(file)
                       } catch (error) {
                         console.error('ファイルアップロードエラー:', error)
                       }

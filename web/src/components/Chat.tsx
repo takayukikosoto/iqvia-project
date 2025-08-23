@@ -127,12 +127,7 @@ export default function Chat({ projectId }: ChatProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow border">
-      {/* Header */}
-      <div className="p-3 border-b bg-gray-50 rounded-t-lg">
-        <h3 className="font-medium text-gray-900">💬 チャット</h3>
-      </div>
-
+    <div className="flex flex-col h-full bg-white">
       {/* Messages */}
       <div className="flex-1 p-3 overflow-y-auto space-y-3">
         {loading ? (
@@ -174,7 +169,7 @@ export default function Chat({ projectId }: ChatProps) {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t bg-gray-50 rounded-b-lg">
+      <div className="p-3 border-t bg-gray-50">
         <div className="flex gap-2">
           <input
             type="text"

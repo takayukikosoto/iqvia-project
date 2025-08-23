@@ -82,17 +82,16 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
   }
 
   useEffect(() => {
-    if (user) {
-      console.log('Authenticated user:', user.id, user.email)
+    if (user?.id) {
       loadProjects()
     }
-  }, [user])
+  }, [user?.id])
 
   useEffect(() => {
-    if (user && selectedProject) {
+    if (user?.id && selectedProject) {
       loadTasks(selectedProject)
     }
-  }, [user, selectedProject])
+  }, [user?.id, selectedProject])
 
   useEffect(() => {
     if (!selectedProject) return
@@ -127,8 +126,8 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
       console.error('Task update error:', error)
       setError(error.message)
     } else {
-      // タスク更新後にページをリロード
-      window.location.reload()
+      // タスクリストを再読み込み
+      loadTasks(selectedProject)
     }
   }
 
@@ -149,8 +148,8 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
       setError(error.message)
     } else {
       setShowCreateModal(false)
-      // タスク作成後にページをリロード
-      window.location.reload()
+      // タスクリストを再読み込み
+      loadTasks(selectedProject)
     }
   }
 
@@ -166,8 +165,8 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
       console.error('Task delete error:', error)
       setError(error.message)
     } else {
-      // タスク削除後にページをリロード
-      window.location.reload()
+      // タスクリストを再読み込み
+      loadTasks(selectedProject)
     }
   }
 

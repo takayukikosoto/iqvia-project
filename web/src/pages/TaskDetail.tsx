@@ -5,6 +5,7 @@ import { useTaskLinks } from '../hooks/useTaskLinks'
 import { useFiles } from '../hooks/useFiles'
 import FileUpload from '../components/FileUpload'
 import FileList from '../components/FileList'
+import TaskComments from '../components/TaskComments'
 import { supabase } from '../supabaseClient'
 
 interface TaskDetailProps {
@@ -24,7 +25,8 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<Task['priority']>('low')
   const [dueAt, setDueAt] = useState('')
-  const [showFiles, setShowFiles] = useState(false)
+  const [showFiles, setShowFiles] = useState(true)
+  const [showStatusOptions, setShowStatusOptions] = useState(false)
   
   // Link form state
   const [isAddingLink, setIsAddingLink] = useState(false)
@@ -224,39 +226,38 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
                 )}
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    {/* Status */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600 whitespace-nowrap">ステータス:</span>
-                      <select
-                        value={task.status}
-                        onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
-                        className="px-3 py-1 text-sm border border-gray-300 rounded-md min-w-0 flex-1 sm:flex-none"
-                      >
-                        {statusOptions.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Priority */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600 whitespace-nowrap">優先度:</span>
-                      <select
-                        value={task.priority}
-                        onChange={(e) => handlePriorityChange(e.target.value)}
-                        className="px-3 py-1 text-sm border border-gray-300 rounded-md min-w-0 flex-1 sm:flex-none"
-                        style={{ backgroundColor: priorityColor + '20' }}
-                      >
-                        {priorityOptions.map(option => (
-                          <option key={option.name} value={option.name}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  {/* Status and Priority Toggle Button */}
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => setShowStatusOptions(!showStatusOptions)}
+                      className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        showStatusOptions 
+                          ? 'bg-gray-100 text-gray-700 border border-gray-200' 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
+                      }`}
+                    >
+                      <svg className={`w-4 h-4 transition-transform ${showStatusOptions ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span>ステータス・優先度</span>
+                      <div className="flex items-center gap-1">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          task.status === 'done' || task.status === 'resolved' 
+                            ? 'bg-green-100 text-green-800' 
+                            : task.status === 'review' 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {statusOptions.find(opt => opt.value === task.status)?.label}
+                        </span>
+                        <span 
+                          className="px-2 py-1 text-xs rounded-full text-white"
+                          style={{ backgroundColor: priorityColor }}
+                        >
+                          {getPriorityLabel(task.priority)}
+                        </span>
+                      </div>
+                    </button>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -270,6 +271,46 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
                     )}
                   </div>
                 </div>
+
+                {/* Collapsible Status and Priority Section */}
+                {showStatusOptions && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-md border border-gray-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      {/* Status */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600 whitespace-nowrap">ステータス:</span>
+                        <select
+                          value={task.status}
+                          onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded-md min-w-0 flex-1 sm:flex-none"
+                        >
+                          {statusOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Priority */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600 whitespace-nowrap">優先度:</span>
+                        <select
+                          value={task.priority}
+                          onChange={(e) => handlePriorityChange(e.target.value)}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded-md min-w-0 flex-1 sm:flex-none"
+                          style={{ backgroundColor: priorityColor + '20' }}
+                        >
+                          {priorityOptions.map(option => (
+                            <option key={option.name} value={option.name}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Description */}
@@ -409,6 +450,11 @@ export default function TaskDetail({ taskId, onBack }: TaskDetailProps) {
                   <p className="text-gray-500 text-center py-4">関連リンクがありません</p>
                 )}
               </div>
+            </div>
+
+            {/* Comments Section */}
+            <div className="mt-8">
+              <TaskComments taskId={taskId} />
             </div>
           </div>
 

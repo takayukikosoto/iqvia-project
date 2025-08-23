@@ -35,7 +35,6 @@ export interface FileVersion {
   upload_status?: string
   change_notes?: string
   uploaded_at?: string
-  uploaded_by?: string
   created_by?: string
   created_at?: string
 }
@@ -57,41 +56,16 @@ export function useFiles(projectId: string, taskId?: string) {
     setLoading(true)
     try {
       if (taskId) {
-        // タスクIDが指定されている場合はストレージから取得
-        const { data: taskData } = await supabase
-          .from('tasks')
-          .select('storage_folder')
-          .eq('id', taskId)
-          .single()
+        // タスクIDが指定されている場合はデータベースから取得（task_idを使用）
+        const { data, error } = await supabase
+          .from('files')
+          .select('*')
+          .eq('project_id', projectId)
+          .eq('task_id', taskId)
+          .order('created_at', { ascending: false })
 
-        if (!taskData?.storage_folder) {
-          setFiles([])
-          setLoading(false)
-          return
-        }
-
-        const { data: storageFiles, error: storageError } = await supabase
-          .storage
-          .from('task-files')
-          .list(taskData.storage_folder, {
-            limit: 1000,
-            offset: 0
-          })
-
-        if (storageError) throw storageError
-
-        // ストレージファイル情報を標準形式に変換
-        const fileList = (storageFiles || []).map(file => ({
-          id: file.name,
-          project_id: projectId,
-          name: file.name,
-          storage_path: `${taskData.storage_folder}/${file.name}`,
-          created_at: file.created_at || new Date().toISOString(),
-          total_size_bytes: file.metadata?.size || 0,
-          total_versions: 1
-        }))
-
-        setFiles(fileList)
+        if (error) throw error
+        setFiles(data || [])
       } else {
         // プロジェクトベースの従来クエリ（task_idを使わない）
         const { data, error } = await supabase
@@ -112,27 +86,62 @@ export function useFiles(projectId: string, taskId?: string) {
   }
 
   // ファイルアップロード
-  const uploadFile = async (file: File, description?: string): Promise<string | null> => {
+  const uploadFile = async (file: File): Promise<string | null> => {
     try {
-      // 1. Supabase Storageにファイルアップロード
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}.${fileExt}`
-      // タスクIDが指定されている場合はタスク専用フォルダに保存
-      const filePath = taskId 
-        ? `${projectId}/task_${taskId}/${fileName}`
-        : `${projectId}/${fileName}`
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+      
+      let bucket = 'files'
+      let filePath = `${projectId}/${fileName}`
+
+      console.log('🔍 Upload debug - Initial state:', { 
+        taskId, 
+        projectId, 
+        fileName, 
+        defaultBucket: bucket, 
+        defaultPath: filePath 
+      })
+
+      // タスクIDが指定されている場合はタスク専用ストレージを使用
+      if (taskId) {
+        console.log('📁 Task detected, fetching storage_folder for taskId:', taskId)
+        
+        // タスクのstorage_folderを取得
+        const { data: taskData, error: taskError } = await supabase
+          .from('tasks')
+          .select('storage_folder')
+          .eq('id', taskId)
+          .single()
+
+        console.log('📂 Task data response:', { taskData, taskError })
+
+        if (taskData?.storage_folder) {
+          bucket = 'task-files'
+          filePath = `${taskData.storage_folder}/${fileName}`
+          console.log('✅ Using task-files bucket:', { bucket, filePath })
+        } else {
+          console.log('⚠️ No storage_folder found, using default bucket')
+        }
+      }
+
+      console.log('📤 Attempting upload to:', { bucket, filePath })
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('files')
+        .from(bucket)
         .upload(filePath, file)
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('❌ Storage upload error:', uploadError)
+        throw uploadError
+      }
+
+      console.log('✅ Upload successful:', { uploadData, bucket, path: uploadData.path })
 
       // 2. ファイルメタデータをDBに保存
       const { data: fileData, error: fileError } = await supabase
         .from('files')
         .insert({
           project_id: projectId,
+          task_id: taskId || null,
           name: file.name,
           provider: 'supabase',
           storage_path: uploadData.path,
@@ -145,15 +154,19 @@ export function useFiles(projectId: string, taskId?: string) {
       if (fileError) throw fileError
 
       // 3. 初回バージョンをfile_versionsに追加
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log('👤 Current user for file_versions:', { userId: user?.id, userEmail: user?.email })
+
       const { error: versionError } = await supabase
         .from('file_versions')
         .insert({
           file_id: fileData.id,
           version: 1,
+          version_number: 1,
           size_bytes: file.size,
           storage_key: uploadData.path,
           storage_path: uploadData.path,
-          uploaded_by: (await supabase.auth.getSession()).data.session?.user?.id
+          created_by: user?.id
         })
 
       if (versionError) throw versionError
@@ -193,8 +206,11 @@ export function useFiles(projectId: string, taskId?: string) {
       const normalizedPath = filePath.replace(/^\/+|\/+$/g, '')
       console.log('Normalized path:', normalizedPath)
 
+      // タスクファイルかどうかでバケットを判定
+      const bucket = taskId ? 'task-files' : 'files'
+
       const { data, error } = await supabase.storage
-        .from('files')
+        .from(bucket)
         .download(normalizedPath)
 
       if (error) {

@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { Task, TaskPriority } from '../types'
 import { usePriority } from '../hooks/usePriority'
-import { useFiles } from '../hooks/useFiles'
-import { Task, TaskPriority, CustomStatus, User } from '../types'
-import { supabase } from '../supabaseClient'
+import { useStatuses } from '../hooks/useStatuses'
 import { useTaskLinks } from '../hooks/useTaskLinks'
+import { useFiles } from '../hooks/useFiles'
+import { supabase } from '../supabaseClient'
+import { format } from 'date-fns'
+import { ja } from 'date-fns/locale'
 import { RecentCommentInfo } from '../hooks/useRecentComments'
 
 interface TaskCardProps {
@@ -28,15 +31,9 @@ const priorityLabels: Record<TaskPriority, string> = {
   urgent: '緊急'
 }
 
-const statusOptions: { value: Task['status']; label: string; color: string }[] = [
-  { value: 'todo', label: '未着手', color: '#6c757d' },
-  { value: 'review', label: 'レビュー中', color: '#ffc107' },
-  { value: 'done', label: '作業完了', color: '#28a745' },
-  { value: 'resolved', label: '対応済み', color: '#17a2b8' }
-]
-
 export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelect, commentInfo }: TaskCardProps) {
   const { priorityOptions, changePriority, getPriorityColor, getPriorityLabel, loading, getPriorityHistory } = usePriority()
+  const { statusOptions, getBoardStatuses, getStatusColor, getStatusLabel, changeStatus, loading: statusLoading } = useStatuses()
   const { links, loading: linksLoading, addLink, updateLink, deleteLink } = useTaskLinks(task.id)
   const { files, uploadFile, deleteFile, loading: filesLoading } = useFiles(task.project_id, task.id)
   
@@ -97,7 +94,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
         color: isOverdue ? '#dc3545' : '#666',
         fontWeight: isOverdue ? 'bold' : 'normal'
       }}>
-        締め切り期限: {date.toLocaleDateString('ja-JP')}
+        締め切り期限: {format(date, 'yyyy-MM-dd', { locale: ja })}
         {isOverdue && ' (期限切れ)'}
       </div>
     )
@@ -116,6 +113,23 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
       window.location.reload()
     } catch (error) {
       console.error('Priority change result: error', error)
+    }
+  }
+
+  const handleStatusChange = async (newStatus: Task['status']) => {
+    try {
+      const result = await changeStatus(task.id, newStatus)
+      
+      if (!result.success) {
+        console.error('Error updating task status:', result.error)
+        return
+      }
+
+      if (onTaskUpdate) {
+        onTaskUpdate(task.id, { status: newStatus })
+      }
+    } catch (error) {
+      console.error('Error updating task status:', error)
     }
   }
 
@@ -195,6 +209,18 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
             <option value="medium">中</option>
             <option value="high">高</option>
             <option value="urgent">緊急</option>
+          </select>
+          <select
+            value={task.status}
+            onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
+            className="px-2 py-1 border rounded text-sm"
+            disabled={loading || statusLoading}
+          >
+            {getBoardStatuses().map(option => (
+              <option key={option.name} value={option.name}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
         <input
@@ -351,7 +377,7 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
               fontWeight: new Date(task.due_at) < new Date() ? 600 : 400,
               marginTop: 2
             }}>
-              📅 {new Date(task.due_at).toLocaleDateString('ja-JP')}
+              📅 {format(new Date(task.due_at), 'yyyy-MM-dd', { locale: ja })}
             </div>
           )}
         </div>
@@ -529,24 +555,24 @@ export default function TaskCard({ task, onTaskUpdate, onTaskDelete, onTaskSelec
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ fontSize: 10, color: '#666', marginBottom: 4 }}>ステータス</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {statusOptions.map((option) => (
+                    {getBoardStatuses().map((option) => (
                       <button
-                        key={option.value}
+                        key={option.name}
                         onClick={async (e) => {
                           e.stopPropagation()
-                          if (task.status !== option.value) {
-                            await onTaskUpdate(task.id, { status: option.value })
+                          if (task.status !== option.name) {
+                            await handleStatusChange(option.name as Task['status'])
                           }
                         }}
                         style={{
                           padding: '4px 8px',
-                          backgroundColor: task.status === option.value ? option.color : '#fff',
-                          color: task.status === option.value ? '#fff' : '#333',
+                          backgroundColor: task.status === option.name ? option.color : '#fff',
+                          color: task.status === option.name ? '#fff' : '#333',
                           border: `1px solid ${option.color}`,
                           borderRadius: 3,
                           cursor: 'pointer',
                           fontSize: 10,
-                          fontWeight: task.status === option.value ? 600 : 400
+                          fontWeight: task.status === option.name ? 600 : 400
                         }}
                       >
                         {option.label}

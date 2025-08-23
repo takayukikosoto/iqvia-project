@@ -1,9 +1,8 @@
 import React from 'react'
+import { Task, TaskStatus } from '../types'
 import TaskCard from './TaskCard'
-import { Task } from '../types'
-import { useRecentComments } from '../hooks/useRecentComments'
-
-type TaskStatus = 'todo' | 'review' | 'done' | 'resolved'
+import { useStatuses } from '../hooks/useStatuses'
+import { useRecentComments, RecentCommentInfo } from '../hooks/useRecentComments'
 
 interface TaskBoardProps {
   tasks: Task[]
@@ -12,27 +11,14 @@ interface TaskBoardProps {
   onTaskSelect?: (taskId: string) => void
 }
 
-const statusLabels: Record<TaskStatus, string> = {
-  todo: '未着手',
-  review: 'レビュー中',
-  done: '作業完了',
-  resolved: '対応済み'
-}
-
-const statusColors: Record<TaskStatus, string> = {
-  todo: '#f9fafb',
-  review: '#f3f4f6', 
-  done: '#e5e7eb',
-  resolved: '#d1d5db'
-}
-
 export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskSelect }: TaskBoardProps) {
-  const statuses: (keyof typeof statusLabels)[] = ['todo', 'review', 'done', 'resolved']
+  const { getBoardStatuses, getStatusLabel, getStatusColor } = useStatuses()
+  const boardStatuses = getBoardStatuses()
   const taskIds = tasks.map(task => task.id)
   const { commentInfo } = useRecentComments(taskIds)
-  
-  const getTasksByStatus = (status: string) => {
-    return tasks.filter(task => task.status === status)
+
+  const getTasksByStatus = (statusName: string) => {
+    return tasks.filter(task => task.status === statusName)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -44,44 +30,37 @@ export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskSel
     e.preventDefault()
     const taskId = e.dataTransfer.getData('text/plain')
     const task = tasks.find(t => t.id === taskId)
-    
+
     if (task && task.status !== newStatus) {
       await onTaskUpdate(taskId, { status: newStatus })
     }
   }
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-      gap: 16,
-      minHeight: '60vh',
-      padding: '0 8px'
-    }}>
-      {statuses.map(status => (
-        <div 
-          key={status} 
+    <div style={{ display: 'flex', gap: 16, height: '100%', padding: 16 }}>
+      {boardStatuses.map(status => (
+        <div
+          key={status.name}
           onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, status)}
+          onDrop={(e) => handleDrop(e, status.name as TaskStatus)}
           style={{
-            backgroundColor: statusColors[status],
+            flex: 1,
+            backgroundColor: '#f9fafb',
             borderRadius: 8,
             padding: 12,
-            minHeight: 400,
-            minWidth: 280,
-            maxWidth: '100%',
-            transition: 'background-color 0.2s ease'
+            minHeight: 400
           }}
           onDragEnter={(e) => {
             e.preventDefault()
-            e.currentTarget.style.backgroundColor = status === 'todo' ? '#f3f4f6' :
-              status === 'review' ? '#e5e7eb' :
-              status === 'done' ? '#d1d5db' : '#9ca3af'
+            e.currentTarget.style.backgroundColor = status.name === 'todo' ? '#f3f4f6' :
+              status.name === 'review' ? '#e5e7eb' :
+              status.name === 'done' ? '#d1d5db' : '#9ca3af'
           }}
           onDragLeave={(e) => {
             e.preventDefault()
-            e.currentTarget.style.backgroundColor = statusColors[status]
-          }}>
+            e.currentTarget.style.backgroundColor = '#f9fafb'
+          }}
+        >
           <h3 style={{
             margin: '0 0 12px 0',
             fontSize: 16,
@@ -91,7 +70,7 @@ export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskSel
             padding: '8px 0',
             borderBottom: '2px solid rgba(0,0,0,0.1)'
           }}>
-            {statusLabels[status]} ({getTasksByStatus(status).length})
+            {status.label} ({getTasksByStatus(status.name).length})
           </h3>
           
           <div style={{
@@ -99,7 +78,7 @@ export default function TaskBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskSel
             flexDirection: 'column',
             gap: 12
           }}>
-            {getTasksByStatus(status).map(task => (
+            {getTasksByStatus(status.name).map(task => (
               <TaskCard
                 key={task.id}
                 task={task}

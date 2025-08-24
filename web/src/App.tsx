@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from './hooks/useAuth'
+import { useRole } from './hooks/useRole'
 import Auth from './components/Auth'
 import Tasks from './pages/Tasks'
 import AdminDashboard from './pages/AdminDashboard'
@@ -8,11 +9,14 @@ import MyPage from './pages/MyPage'
 import Files from './pages/Files'
 import Calendar from './pages/Calendar'
 import CompletedTasks from './pages/CompletedTasks'
+import UserManagement from './pages/UserManagement'
 
-type CurrentPage = 'tasks' | 'admin' | 'mypage' | 'files' | 'calendar' | 'task-detail' | 'completed'
+type CurrentPage = 'tasks' | 'admin' | 'mypage' | 'files' | 'calendar' | 'task-detail' | 'completed' | 'user-management'
 
 export default function App() {
   const { user, loading, signOut } = useAuth()
+  const { userRole, hasPermission } = useRole()
+  const isAdmin = userRole?.role === 'admin'
   const [currentPage, setCurrentPage] = useState<CurrentPage>('tasks')
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
 
@@ -42,6 +46,8 @@ export default function App() {
     switch (currentPage) {
       case 'admin':
         return <AdminDashboard />
+      case 'user-management':
+        return <UserManagement />
       case 'mypage':
         return <MyPage />
       case 'files':
@@ -130,6 +136,18 @@ export default function App() {
                 >
                   管理者ダッシュボード
                 </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setCurrentPage('user-management')}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      currentPage === 'user-management' 
+                        ? 'bg-red-100 text-red-700' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    ユーザー管理
+                  </button>
+                )}
               </nav>
             </div>
             <div className="flex items-center space-x-4">

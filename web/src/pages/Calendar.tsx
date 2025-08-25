@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import type { EventDTO } from '../types/event';
+import { usePersonalTasks, getTaskTypeColor, getPriorityColor } from '../hooks/usePersonalTasks';
+import { useAttendance } from '../hooks/useAttendance';
 import TaskDetail from './TaskDetail';
 
 interface Task {
@@ -20,11 +22,23 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 
+// タスクタイプのアイコンを取得するヘルパー関数
+function getTaskTypeIcon(taskType: string): string {
+  const icons: Record<string, string> = {
+    personal: '👤',
+    project: '📊', 
+    team: '👥',
+    company: '🏢'
+  }
+  return icons[taskType] || '📋'
+}
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const { tasks: personalTasks } = usePersonalTasks();
+  const { getAttendanceStats } = useAttendance();
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventTitle, setEventTitle] = useState('');
@@ -177,12 +191,19 @@ export default function CalendarPage() {
   const handleEventClick = useCallback((info: any) => {
     const eventType = info.event.extendedProps?.type;
     
-    if (eventType === 'task') {
+    if (eventType === 'task' || eventType === 'personal_task') {
       // タスクイベントをクリックした場合、タスク詳細画面に遷移
       const taskId = info.event.extendedProps.taskId;
+      const isPersonal = eventType === 'personal_task';
+      
+      // 個人タスクの場合は特別な処理を追加可能
+      if (isPersonal) {
+        console.log('個人タスクがクリックされました:', info.event.title);
+      }
+      
       setSelectedTaskId(taskId);
     } else {
-      // 通常のイベントをクリックした場合（今後の拡張用）
+      // 通常のイベントをクリックした場合
       console.log('通常のイベントがクリックされました:', info.event);
     }
   }, []);
@@ -274,7 +295,28 @@ export default function CalendarPage() {
       }
     }));
 
-    // タスクの期日をイベントとして変換
+    // 個人タスクをイベントとして変換（改善版）
+    const personalTaskItems = personalTasks
+      .filter(task => task.due_at)
+      .map(task => ({
+        id: `personal-task-${task.id}`,
+        title: `${getTaskTypeIcon(task.task_type)} ${task.title}`,
+        start: task.due_at!,
+        allDay: true,
+        color: getTaskTypeColor(task.task_type),
+        borderColor: getPriorityColor(task.priority),
+        extendedProps: {
+          type: 'personal_task',
+          taskId: task.id,
+          taskType: task.task_type,
+          status: task.status,
+          priority: task.priority,
+          description: task.description,
+          isPersonal: task.task_type === 'personal'
+        }
+      }));
+
+    // 従来のタスクをイベントとして変換
     const taskItems = tasks.map(task => ({
       id: `task-${task.id}`,
       title: `📋 ${task.title}`,
@@ -292,8 +334,8 @@ export default function CalendarPage() {
       }
     }));
 
-    return [...eventItems, ...taskItems];
-  }, [events, tasks]);
+    return [...eventItems, ...personalTaskItems, ...taskItems];
+  }, [events, tasks, personalTasks]);
 
   if (loading) {
     return (
@@ -308,6 +350,26 @@ export default function CalendarPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">カレンダー</h1>
         <p className="text-gray-600 mt-2">空いている時間帯をドラッグしてイベントを作成できます</p>
+        
+        {/* タスク種別凡例 */}
+        <div className="mt-3 flex flex-wrap gap-4 text-sm">
+          <div className="flex items-center space-x-2">
+            <span className="w-3 h-3 rounded" style={{backgroundColor: getTaskTypeColor('personal')}}></span>
+            <span>👤 個人タスク</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-3 h-3 rounded" style={{backgroundColor: getTaskTypeColor('project')}}></span>
+            <span>📊 プロジェクトタスク</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-3 h-3 rounded" style={{backgroundColor: getTaskTypeColor('team')}}></span>
+            <span>👥 チームタスク</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="w-3 h-3 rounded" style={{backgroundColor: getTaskTypeColor('company')}}></span>
+            <span>🏢 全社タスク</span>
+          </div>
+        </div>
       </div>
       
       <div className="bg-white rounded-lg shadow-sm border">

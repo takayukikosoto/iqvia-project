@@ -1,17 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useRole } from './hooks/useRole'
 import Auth from './components/Auth'
 import Tasks from './pages/Tasks'
 import AdminDashboard from './pages/AdminDashboard'
-import TaskDetail from './pages/TaskDetail'
 import MyPage from './pages/MyPage'
 import Files from './pages/Files'
+import TaskDetail from './pages/TaskDetail'
 import Calendar from './pages/Calendar'
 import CompletedTasks from './pages/CompletedTasks'
 import UserManagement from './pages/UserManagement'
+import TaskList from './pages/TaskList'
 
-type CurrentPage = 'tasks' | 'admin' | 'mypage' | 'files' | 'calendar' | 'task-detail' | 'completed' | 'user-management'
+type CurrentPage = 'tasks' | 'task-list' | 'admin' | 'mypage' | 'files' | 'calendar' | 'task-detail' | 'completed' | 'user-management'
 
 export default function App() {
   const { user, loading, signOut } = useAuth()
@@ -56,15 +57,17 @@ export default function App() {
         return <Calendar />
       case 'completed':
         return <CompletedTasks />
+      case 'task-list':
+        return <TaskList />
       case 'task-detail':
         return selectedTaskId ? (
           <TaskDetail taskId={selectedTaskId} onBack={handleBackToTasks} />
         ) : (
-          <Tasks onTaskSelect={handleTaskSelect} />
+          <Tasks onTaskSelect={handleTaskSelect} onNavigateToTaskList={() => setCurrentPage('task-list')} />
         )
       case 'tasks':
       default:
-        return <Tasks onTaskSelect={handleTaskSelect} />
+        return <Tasks onTaskSelect={handleTaskSelect} onNavigateToTaskList={() => setCurrentPage('task-list')} />
     }
   }
 
@@ -85,6 +88,16 @@ export default function App() {
                   }`}
                 >
                   タスク管理
+                </button>
+                <button
+                  onClick={() => setCurrentPage('task-list')}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    currentPage === 'task-list' 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  タスクリスト
                 </button>
                 <button
                   onClick={() => setCurrentPage('mypage')}

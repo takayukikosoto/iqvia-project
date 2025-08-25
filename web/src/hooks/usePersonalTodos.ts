@@ -228,6 +228,21 @@ export function usePersonalTodos() {
     fetchTodos()
   }, [user])
 
+  // 今週の進捗計算
+  const getWeekProgress = () => {
+    const thisWeekTodos = getThisWeekTodos()
+    const completed = thisWeekTodos.filter(t => t.completed).length
+    const total = thisWeekTodos.length
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+    
+    return {
+      completed,
+      total,
+      percentage,
+      remaining: total - completed
+    }
+  }
+
   return {
     todos,
     loading,
@@ -238,6 +253,7 @@ export function usePersonalTodos() {
     toggleComplete,
     getThisWeekTodos,
     getTodoStats,
+    getWeekProgress,
     getPriorityLabel,
     formatDueDate,
     refetch: fetchTodos

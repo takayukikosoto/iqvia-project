@@ -1,0 +1,2 @@
+-- Fix authentication system - removed manual user creation to use Supabase Auth properly
+-- Users should be created through Supabase Auth API, not directly in migrations

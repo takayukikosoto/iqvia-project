@@ -31,9 +31,10 @@ interface Project {
 
 interface TasksProps {
   onTaskSelect?: (taskId: string) => void
+  onNavigateToTaskList?: () => void
 }
 
-export default function Tasks({ onTaskSelect }: TasksProps) {
+export default function Tasks({ onTaskSelect, onNavigateToTaskList }: TasksProps) {
   const { user } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -207,6 +208,15 @@ export default function Tasks({ onTaskSelect }: TasksProps) {
             )}
           </div>
           <div className="flex space-x-3">
+            <button
+              onClick={onNavigateToTaskList}
+              className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              <span>タスクリスト表示</span>
+            </button>
             <button
               onClick={() => setShowChat(!showChat)}
               className={`px-4 py-3 font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center space-x-2 ${

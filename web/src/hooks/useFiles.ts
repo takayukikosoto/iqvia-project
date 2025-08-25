@@ -137,6 +137,7 @@ export function useFiles(projectId: string, taskId?: string) {
       console.log('✅ Upload successful:', { uploadData, bucket, path: uploadData.path })
 
       // 2. ファイルメタデータをDBに保存
+      const { data: { user } } = await supabase.auth.getUser()
       const { data: fileData, error: fileError } = await supabase
         .from('files')
         .insert({
@@ -146,7 +147,8 @@ export function useFiles(projectId: string, taskId?: string) {
           provider: 'supabase',
           storage_path: uploadData.path,
           current_version: 1,
-          created_by: (await supabase.auth.getUser()).data.user?.id
+          created_by: user?.id,
+          uploaded_by: user?.id
         })
         .select()
         .single()
@@ -154,7 +156,6 @@ export function useFiles(projectId: string, taskId?: string) {
       if (fileError) throw fileError
 
       // 3. 初回バージョンをfile_versionsに追加
-      const { data: { user } } = await supabase.auth.getUser()
       console.log('👤 Current user for file_versions:', { userId: user?.id, userEmail: user?.email })
 
       const { error: versionError } = await supabase
